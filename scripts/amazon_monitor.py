@@ -158,6 +158,15 @@ def build_report(inventory: dict, sales: dict) -> tuple[str, list[str]]:
 def main():
     print(f"[{datetime.now()}] AARZOU Monitor starting...")
 
+    # If Amazon credentials not yet configured, send a setup confirmation email
+    if not os.environ.get("AMAZON_REFRESH_TOKEN"):
+        send_email(
+            subject="✅ AARZOU Monitor — Email Test Successful",
+            html_body="<h2>Email delivery confirmed.</h2><p>Amazon SP-API credentials not yet added. Add them to GitHub Secrets once your SP-API application is approved and the monitor will go live automatically.</p>"
+        )
+        print("SP-API credentials not set — sent test email.")
+        return
+
     inventory = get_inventory()
     sales = get_sales_last_7_days()
     html_body, alerts = build_report(inventory, sales)
