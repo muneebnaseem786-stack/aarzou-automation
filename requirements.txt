@@ -1,0 +1,1 @@
+python-amazon-sp-api==1.0.16
