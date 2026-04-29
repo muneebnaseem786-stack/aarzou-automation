@@ -12,6 +12,27 @@ import pandas as pd
 
 MARKETPLACE_ID = "A2VIGQ35RCS4UG"  # Amazon UAE
 
+# Amazon UAE referral fee = 15% across all categories here
+# FBA per-unit fee and monthly storage are size/weight-based estimates
+MOCK_FEES = {
+    "B0F8W72SYT": {"referral_pct": 0.15, "fba_per_unit": 12.0, "storage_monthly": 3.5},
+    "B09M69G8X7": {"referral_pct": 0.15, "fba_per_unit":  7.5, "storage_monthly": 2.0},
+    "B0FBXBLF9Y": {"referral_pct": 0.15, "fba_per_unit": 13.5, "storage_monthly": 4.0},
+    "B0C592JW6D": {"referral_pct": 0.15, "fba_per_unit":  9.5, "storage_monthly": 2.5},
+    "B0C43HGC77": {"referral_pct": 0.15, "fba_per_unit":  9.5, "storage_monthly": 2.5},
+}
+
+# Mock Sponsored Products campaigns — 30-day window
+# Total spend AED 434 | Total attributed sales AED 1,505
+_MOCK_CAMPAIGNS = [
+    {"Campaign": "SP - Microphone - Broad",  "ASIN": "B0F8W72SYT", "Product": "Microphone",       "Impressions": 8420, "Clicks": 127, "Spend": 89.0,  "Sales": 324.0, "Orders": 3},
+    {"Campaign": "SP - Microphone - Exact",  "ASIN": "B0F8W72SYT", "Product": "Microphone",       "Impressions": 3210, "Clicks":  68, "Spend": 52.0,  "Sales": 216.0, "Orders": 2},
+    {"Campaign": "SP - Broom Holder",        "ASIN": "B09M69G8X7", "Product": "Broom Holder",     "Impressions": 5640, "Clicks":  89, "Spend": 45.0,  "Sales": 152.0, "Orders": 4},
+    {"Campaign": "SP - Bidet - KW",          "ASIN": "B0FBXBLF9Y", "Product": "Bidet",            "Impressions": 6820, "Clicks": 102, "Spend": 78.0,  "Sales": 255.0, "Orders": 3},
+    {"Campaign": "SP - Travel Org - Broad",  "ASIN": "B0C592JW6D", "Product": "Travel Org Beige", "Impressions": 9340, "Clicks": 156, "Spend": 112.0, "Sales": 372.0, "Orders": 6},
+    {"Campaign": "SP - Travel Org - Exact",  "ASIN": "B0C43HGC77", "Product": "Travel Org Grey",  "Impressions": 4180, "Clicks":  74, "Spend":  58.0, "Sales": 186.0, "Orders": 3},
+]
+
 PRODUCTS = {
     "B0F8W72SYT": {"name": "Microphone",        "reorder_threshold": 10, "price": 120},
     "B09M69G8X7": {"name": "Broom Holder",       "reorder_threshold": 8,  "price": 38},
@@ -174,3 +195,29 @@ def build_inventory_df(inventory: dict, sales_7d: dict) -> pd.DataFrame:
             "_price":       meta["price"],
         })
     return pd.DataFrame(rows)
+
+
+def get_fees() -> dict:
+    """Returns fee structure per ASIN — real SP-API ProductFees or mock."""
+    if not is_live():
+        return {k: dict(v) for k, v in MOCK_FEES.items()}
+
+    # TODO: SP-API ProductFees.get_my_fees_estimate per ASIN
+    # Falls back to mock until Advertising API is wired up
+    return {k: dict(v) for k, v in MOCK_FEES.items()}
+
+
+def get_ad_performance_30d() -> pd.DataFrame:
+    """Returns campaign-level ad performance for last 30 days — real Advertising API or mock."""
+    if not is_live():
+        df = pd.DataFrame(_MOCK_CAMPAIGNS)
+    else:
+        # TODO: Amazon Advertising API — requires separate credentials
+        # (AMAZON_ADS_CLIENT_ID, AMAZON_ADS_CLIENT_SECRET, AMAZON_ADS_REFRESH_TOKEN)
+        df = pd.DataFrame(_MOCK_CAMPAIGNS)
+
+    df["CTR (%)"]  = (df["Clicks"] / df["Impressions"] * 100).round(2)
+    df["ACOS (%)"] = (df["Spend"]  / df["Sales"]        * 100).round(1)
+    df["ROAS"]     = (df["Sales"]  / df["Spend"]).round(2)
+    df["CPC (AED)"] = (df["Spend"] / df["Clicks"]).round(2)
+    return df
