@@ -1,0 +1,30 @@
+name: AARZOU Weekly Product Research
+
+on:
+  schedule:
+    # 04:00 UTC = 08:00 UAE time (UTC+4) every Monday
+    - cron: "0 4 * * 1"
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run product research
+        env:
+          NOON_CREDENTIALS_JSON: ${{ secrets.NOON_CREDENTIALS_JSON }}
+          GMAIL_ADDRESS:         ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python -m scripts.product_research

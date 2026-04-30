@@ -23,6 +23,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Amazon monitor
+        continue-on-error: true
         env:
           AMAZON_CLIENT_ID:      ${{ secrets.AMAZON_CLIENT_ID }}
           AMAZON_CLIENT_SECRET:  ${{ secrets.AMAZON_CLIENT_SECRET }}
@@ -30,3 +31,11 @@ jobs:
           GMAIL_ADDRESS:         ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python -m scripts.amazon_monitor
+
+      - name: Run Noon monitor
+        continue-on-error: true
+        env:
+          NOON_CREDENTIALS_JSON: ${{ secrets.NOON_CREDENTIALS_JSON }}
+          GMAIL_ADDRESS:         ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:    ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python -m scripts.noon_monitor
