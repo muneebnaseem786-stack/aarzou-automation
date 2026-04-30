@@ -4,8 +4,11 @@ Returns clean dataframes for the dashboard to display.
 """
 
 import os
+import json
+import time
+import jwt
+import requests
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 import pandas as pd
 
 
@@ -25,7 +28,7 @@ def amazon_ready() -> bool:
 
 
 def noon_ready() -> bool:
-    return bool(os.environ.get("NOON_API_KEY"))
+    return bool(os.environ.get("NOON_CREDENTIALS_JSON"))
 
 
 # ── Amazon ────────────────────────────────────────────────────────────────────
@@ -107,41 +110,59 @@ def fetch_amazon_orders(days: int = 30) -> pd.DataFrame:
 
 # ── Noon ──────────────────────────────────────────────────────────────────────
 
+NOON_BASE_URL = "https://api.noon.partners"
+
+
+def get_noon_jwt() -> str:
+    """
+    Generates a signed JWT for Noon API authentication.
+    Noon uses RS256 — private key signs each request token.
+    """
+    creds = json.loads(os.environ["NOON_CREDENTIALS_JSON"])
+    now = int(time.time())
+    payload = {
+        "iss": creds["key_id"],
+        "sub": creds["channel_identifier"],
+        "iat": now,
+        "exp": now + 3600,  # 1 hour validity
+    }
+    token = jwt.encode(payload, creds["private_key"], algorithm="RS256")
+    return token
+
+
+def noon_headers() -> dict:
+    return {
+        "Authorization": f"Bearer {get_noon_jwt()}",
+        "Content-Type":  "application/json",
+    }
+
+
 def fetch_noon_orders(days: int = 30) -> pd.DataFrame:
-    """
-    Noon Commercial API — fetches recent orders.
-    Endpoint: GET /v2/orders  (base: https://api.noon.partners)
-    """
-    import requests
+    """Noon Commercial API — fetches recent sales orders."""
     rows = []
     try:
-        api_key    = os.environ["NOON_API_KEY"]
-        api_secret = os.environ["NOON_API_SECRET"]
-        base_url   = "https://api.noon.partners"
-        created_after = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
-
-        headers = {
-            "Authorization": f"Basic {api_key}:{api_secret}",
-            "Content-Type":  "application/json",
-        }
-        params = {"from_date": created_after, "limit": 200}
-        response = requests.get(f"{base_url}/v2/orders", headers=headers, params=params, timeout=30)
+        created_after = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        params = {"created_after": created_after, "limit": 200, "status": "delivered,shipped"}
+        response = requests.get(
+            f"{NOON_BASE_URL}/v2/orders",
+            headers=noon_headers(),
+            params=params,
+            timeout=30,
+        )
         response.raise_for_status()
-        data = response.json()
-
-        for order in data.get("orders", []):
+        for order in response.json().get("orders", []):
             for item in order.get("items", []):
+                qty = int(item.get("quantity", 0))
                 rows.append({
                     "date":        order.get("created_at", "")[:10],
                     "product":     item.get("name", "Unknown"),
                     "sku":         item.get("sku", ""),
-                    "units":       int(item.get("quantity", 0)),
-                    "revenue_aed": float(item.get("unit_price", 0)) * int(item.get("quantity", 0)),
+                    "units":       qty,
+                    "revenue_aed": float(item.get("unit_price", 0)) * qty,
                     "platform":    "Noon",
                 })
     except Exception as e:
         print(f"Noon orders error: {e}")
-
     df = pd.DataFrame(rows)
     if not df.empty:
         df["date"] = pd.to_datetime(df["date"])
@@ -149,14 +170,14 @@ def fetch_noon_orders(days: int = 30) -> pd.DataFrame:
 
 
 def fetch_noon_inventory() -> pd.DataFrame:
-    """Noon inventory levels from Commercial API."""
-    import requests
+    """Noon inventory levels — fulfillable stock per SKU."""
     rows = []
     try:
-        api_key    = os.environ["NOON_API_KEY"]
-        api_secret = os.environ["NOON_API_SECRET"]
-        headers    = {"Authorization": f"Basic {api_key}:{api_secret}"}
-        response   = requests.get("https://api.noon.partners/v2/products", headers=headers, timeout=30)
+        response = requests.get(
+            f"{NOON_BASE_URL}/v2/products",
+            headers=noon_headers(),
+            timeout=30,
+        )
         response.raise_for_status()
         for item in response.json().get("products", []):
             rows.append({
