@@ -113,11 +113,9 @@ def fetch_amazon_orders(days: int = 30) -> pd.DataFrame:
 NOON_BASE_URL = "https://noon-api-gateway.noon.partners"
 
 NOON_PARTNER_SKUS = {
-    "Microphone":      "Microphone",
-    "BroomHolder":     "Broom Holder",
-    "Bidet":           "Bidet",
-    "TravelOrgBeige":  "Travel Org Beige",
-    "TravelOrgGrey":   "Travel Org Grey",
+    "Microphone": "Microphone",
+    "Mop Holder": "Broom Holder",
+    "Bidet Set":  "Bidet",
 }
 
 _noon_session = None
