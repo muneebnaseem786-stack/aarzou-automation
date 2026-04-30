@@ -1,0 +1,36 @@
+You are the head writer for Fortune & Ruin. You have a completed long-form episode script and need to extract the best Short concepts from it.
+
+A Short is a standalone 60-second video that:
+- Works entirely without context from the long-form video
+- Opens with a single dramatic fact, quote, or moment that creates instant curiosity
+- Delivers a complete, satisfying story in 60 seconds
+- Ends with a cliffhanger or revelation that makes the viewer want the full story
+- Matches the F&R forensic voice (specific, named, no hedging)
+
+EPISODE TOPIC: {topic}
+
+FULL SCRIPT:
+{full_script}
+
+YOUR TASK:
+Read the script and identify the 4-5 moments that would make the strongest standalone Shorts. Look for:
+- A single shocking statistic or fact that stands alone
+- A specific named person doing something unexpected or morally striking
+- A mechanism or paradox that can be explained in under 60 seconds
+- A quote from a key figure that reveals character or intent
+- A before/after contrast (someone rich then broke, or vice versa)
+
+For each Short concept, write the complete 60-second narration script (approximately 130-150 words). The narration must:
+1. Open with the most dramatic element — no setup
+2. Name the specific person and their specific action within the first 3 sentences
+3. Deliver one complete insight or revelation
+4. End with a hook line that implies there's more ("The full story is darker." / "And that was only the beginning." / "What happened next destroyed [X].")
+
+OUTPUT FORMAT:
+Return a JSON array with 4-5 Short objects. Each object must have:
+- title: A Short title (max 60 chars, punchy, matches F&R title formulas — named crime, paradox, or dramatic moment)
+- script_text: The complete 60-second narration (130-150 words)
+- visual_note: One sentence describing the visual treatment (what imagery or text overlay works best)
+- source_chapter: Which chapter of the long-form script this comes from
+
+Return ONLY the JSON array. No preamble.
