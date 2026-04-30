@@ -110,55 +110,83 @@ def fetch_amazon_orders(days: int = 30) -> pd.DataFrame:
 
 # ── Noon ──────────────────────────────────────────────────────────────────────
 
-NOON_BASE_URL = "https://api.noon.partners"
+NOON_BASE_URL = "https://noon-api-gateway.noon.partners"
+
+NOON_PARTNER_SKUS = {
+    "Microphone":      "Microphone",
+    "BroomHolder":     "Broom Holder",
+    "Bidet":           "Bidet",
+    "TravelOrgBeige":  "Travel Org Beige",
+    "TravelOrgGrey":   "Travel Org Grey",
+}
+
+_noon_session = None
+_noon_session_time = 0
+SESSION_TTL = 3600  # re-login every hour
 
 
-def get_noon_jwt() -> str:
-    """
-    Generates a signed JWT for Noon API authentication.
-    Noon uses RS256 — private key signs each request token.
-    """
+def _get_noon_session() -> requests.Session:
+    global _noon_session, _noon_session_time
+    if _noon_session and (time.time() - _noon_session_time) < SESSION_TTL:
+        return _noon_session
+    import uuid
     creds = json.loads(os.environ["NOON_CREDENTIALS_JSON"])
-    now = int(time.time())
-    payload = {
-        "iss": creds["key_id"],
-        "sub": creds["channel_identifier"],
-        "iat": now,
-        "exp": now + 3600,  # 1 hour validity
-    }
-    token = jwt.encode(payload, creds["private_key"], algorithm="RS256")
-    return token
+    token = jwt.encode(
+        {"sub": creds["key_id"], "iat": int(time.time()), "jti": str(uuid.uuid4())},
+        creds["private_key"], algorithm="RS256",
+    )
+    session = requests.Session()
+    session.headers.update({"User-Agent": "AARZOU-Dashboard/1.0", "Content-Type": "application/json"})
+    r = session.post(
+        f"{NOON_BASE_URL}/identity/public/v1/api/login",
+        json={"token": token, "default_project_code": creds["project_code"]},
+        timeout=30,
+    )
+    r.raise_for_status()
+    _noon_session = session
+    _noon_session_time = time.time()
+    return session
 
 
-def noon_headers() -> dict:
-    return {
-        "Authorization": f"Bearer {get_noon_jwt()}",
-        "Content-Type":  "application/json",
-    }
+def _noon_create_and_download_export(session, category_code: str, params: dict) -> str:
+    """Create an export job and return the CSV text when complete."""
+    r = session.post(f"{NOON_BASE_URL}/impex/v1/export/create",
+                     json={"export_category_code": category_code, "params": params}, timeout=30)
+    r.raise_for_status()
+    export_code = r.json()["export_code"]
+    for _ in range(24):  # wait up to 2 min
+        time.sleep(5)
+        st = session.post(f"{NOON_BASE_URL}/impex/v1/export/status",
+                          json={"export_code": export_code}, timeout=30).json()
+        if st.get("export_status") == "COMPLETE" and st.get("download_url"):
+            return requests.get(st["download_url"], timeout=60).text
+    raise TimeoutError(f"Export {export_code} did not complete in time")
 
 
 def fetch_noon_orders(days: int = 30) -> pd.DataFrame:
-    """Noon Commercial API — fetches recent sales orders."""
+    """Noon sales data via productviewsandsalesdata export."""
     rows = []
     try:
-        created_after = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        params = {"created_after": created_after, "limit": 200, "status": "delivered,shipped"}
-        response = requests.get(
-            f"{NOON_BASE_URL}/v2/orders",
-            headers=noon_headers(),
-            params=params,
-            timeout=30,
+        import io
+        session = _get_noon_session()
+        now = datetime.now(timezone.utc)
+        from_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+        to_date = now.strftime("%Y-%m-%d")
+        csv_text = _noon_create_and_download_export(session,
+            "noon_catalog_reports_productviewsandsalesdata",
+            {"country": "ae", "from_date": from_date, "to_date": to_date, "lang": "en"},
         )
-        response.raise_for_status()
-        for order in response.json().get("orders", []):
-            for item in order.get("items", []):
-                qty = int(item.get("quantity", 0))
+        df_raw = pd.read_csv(io.StringIO(csv_text))
+        for _, row in df_raw.iterrows():
+            units = int(row.get("Shipped_Units", 0) or 0)
+            revenue = float(row.get("Revenue_Shipped", 0) or 0)
+            if units > 0:
                 rows.append({
-                    "date":        order.get("created_at", "")[:10],
-                    "product":     item.get("name", "Unknown"),
-                    "sku":         item.get("sku", ""),
-                    "units":       qty,
-                    "revenue_aed": float(item.get("unit_price", 0)) * qty,
+                    "date":        row.get("Visit_Date", ""),
+                    "product":     row.get("Partner_SKU", "Unknown"),
+                    "sku":         row.get("SKU", ""),
+                    "units":       units,
+                    "revenue_aed": revenue,
                     "platform":    "Noon",
                 })
     except Exception as e:
@@ -170,22 +198,27 @@ def fetch_noon_orders(days: int = 30) -> pd.DataFrame:
 
 
 def fetch_noon_inventory() -> pd.DataFrame:
-    """Noon inventory levels — fulfillable stock per SKU."""
+    """Noon inventory via offer endpoint per SKU."""
     rows = []
     try:
-        response = requests.get(
-            f"{NOON_BASE_URL}/v2/products",
-            headers=noon_headers(),
-            timeout=30,
-        )
-        response.raise_for_status()
-        for item in response.json().get("products", []):
-            rows.append({
-                "product":         item.get("name", "Unknown"),
-                "sku":             item.get("sku", ""),
-                "units_available": int(item.get("quantity", 0)),
-                "platform":        "Noon",
-            })
+        session = _get_noon_session()
+        for partner_sku, product_name in NOON_PARTNER_SKUS.items():
+            try:
+                r = session.get(f"{NOON_BASE_URL}/offer/v1/product/{partner_sku}", timeout=30)
+                if r.status_code != 200:
+                    continue
+                data = r.json()
+                for offer in data.get("offers", []):
+                    if offer.get("country_code") == "ae":
+                        rows.append({
+                            "product":         product_name,
+                            "sku":             partner_sku,
+                            "units_available": int(offer.get("active_net_stock", 0)),
+                            "platform":        "Noon",
+                        })
+                        break
+            except Exception:
+                continue
     except Exception as e:
         print(f"Noon inventory error: {e}")
     return pd.DataFrame(rows)
