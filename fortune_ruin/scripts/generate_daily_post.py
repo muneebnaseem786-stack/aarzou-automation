@@ -111,33 +111,20 @@ def generate_post(post_type: str, context: str) -> list[str]:
 
 # ── Format Telegram message ───────────────────────────────────────────────────
 
-def format_message(post_type: str, tweets: list[str], slot_label: str, typefully_url: str = "") -> str:
+def format_message(post_type: str, tweets: list[str], slot_label: str) -> str:
     label = POST_TYPE_LABELS.get(post_type, post_type)
-
-    # Thread content block — paste directly into Typefully or any thread composer
     thread_block = "\n\n---\n\n".join(tweets)
 
     lines = [
         f"🐦 Fortune & Ruin — {label}",
         f"{slot_label} · {len(tweets)} tweets",
         "",
+        "── Copy into X thread composer ──",
+        "",
+        thread_block,
+        "",
+        "─────────────────────────────────",
     ]
-
-    if typefully_url:
-        lines += [
-            f"✅ Draft ready in Typefully:",
-            typefully_url,
-            "",
-            "Open the link → review → Schedule or Post Now.",
-        ]
-    else:
-        lines += [
-            "── Copy block below into Typefully / X composer ──",
-            "",
-            thread_block,
-            "",
-            "──────────────────────────────────────────────────",
-        ]
 
     return "\n".join(lines)
 
@@ -192,14 +179,7 @@ def main():
     tweets = generate_post(post_type, context)
     print(f"[generate] Got {len(tweets)} tweets")
 
-    print("[generate] Creating Typefully draft...")
-    typefully_url = create_typefully_draft(tweets)
-    if typefully_url:
-        print(f"[generate] Typefully draft: {typefully_url}")
-    else:
-        print("[generate] No Typefully key — sending full text to Telegram")
-
-    message = format_message(post_type, tweets, slot_label, typefully_url)
+    message = format_message(post_type, tweets, slot_label)
     result = send_telegram(message)
 
     if result.get("ok"):
