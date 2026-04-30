@@ -2,6 +2,7 @@
 
 import sys
 import os
+import json
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -95,11 +96,12 @@ st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 
-tab_inv, tab_rev, tab_ads, tab_pl = st.tabs([
+tab_inv, tab_rev, tab_ads, tab_pl, tab_content = st.tabs([
     "📦  Inventory",
     "💰  Revenue & Sales",
     "📊  Ad Performance",
     "📈  P&L",
+    "✍️  Content",
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -465,3 +467,190 @@ with tab_pl:
         margin=dict(t=20, b=0), height=280, yaxis_title="AED",
     )
     st.plotly_chart(fig_gp, use_container_width=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 5 — CONTENT STUDIO
+# ══════════════════════════════════════════════════════════════════════════════
+
+with tab_content:
+
+    sub_ideas, sub_queue, sub_perf = st.tabs(["💡 Ideas", "⚡ Reaction Queue", "📈 Performance"])
+
+    # ── IDEAS (Form 1) ────────────────────────────────────────────────────────
+    with sub_ideas:
+        st.markdown("### Today's Content Ideas")
+        st.caption("Generated daily at 7am UAE. Full content packs pre-built for each idea.")
+
+        try:
+            with open("data/content_ideas.json") as _f:
+                _ideas_data = json.load(_f)
+            _ideas      = _ideas_data.get("ideas", [])
+            _gen_at     = _ideas_data.get("generated_at", "")[:16].replace("T", " ")
+            _art_count  = _ideas_data.get("article_count", 0)
+            st.caption(f"Generated: {_gen_at} UTC  ·  {_art_count} articles scanned  ·  {len(_ideas)} ideas")
+        except (FileNotFoundError, json.JSONDecodeError):
+            _ideas = []
+            st.info("No ideas yet. The daily job runs at 7am UAE — or trigger it manually in GitHub Actions.")
+
+        _urgency_icon = {"breaking": "🔴", "timely": "🟡", "evergreen": "🟢"}
+
+        for _i, _idea in enumerate(_ideas):
+            _icon = _urgency_icon.get(_idea.get("urgency", "timely"), "🟡")
+            with st.expander(f"{_icon} {_idea.get('title', 'Idea')}", expanded=(_i == 0)):
+                _c1, _c2 = st.columns([1, 2])
+
+                with _c1:
+                    st.markdown(f"**Trend:** {_idea.get('trend', '')}")
+                    st.markdown(f"**Consensus:** {_idea.get('consensus', '')}")
+                    st.markdown(f"**Our angle:** {_idea.get('angle', '')}")
+                    st.markdown(f"**Urgency:** {_icon} {_idea.get('urgency', '').upper()}")
+                    st.markdown(f"**Pillar:** {_idea.get('pillar', '')}")
+
+                with _c2:
+                    _pack = _idea.get("content_pack", {})
+                    if _pack and "raw" not in _pack:
+                        _pt1, _pt2, _pt3, _pt4 = st.tabs(["X Post", "X Thread", "LinkedIn", "Substack"])
+
+                        with _pt1:
+                            _xp = _pack.get("x_longform", "")
+                            st.text_area("Copy and post on X:", _xp, height=220, key=f"xp_{_i}")
+                            st.caption(f"{len(_xp.split())} words")
+
+                        with _pt2:
+                            _thread = _pack.get("x_thread", [])
+                            for _j, _tw in enumerate(_thread):
+                                st.text_area(f"Tweet {_j+1} ({len(_tw)} chars)", _tw, height=90, key=f"tw_{_i}_{_j}")
+
+                        with _pt3:
+                            _li = _pack.get("linkedin", "")
+                            st.text_area("Copy and post on LinkedIn:", _li, height=220, key=f"li_{_i}")
+
+                        with _pt4:
+                            _ss = _pack.get("substack_draft", "")
+                            st.text_area("Substack outline:", _ss, height=260, key=f"ss_{_i}")
+                    elif _pack and "raw" in _pack:
+                        st.text_area("Generated content (parse error — raw):", _pack["raw"], height=300, key=f"raw_{_i}")
+                    else:
+                        st.info("Content pack not generated yet.")
+
+    # ── REACTION QUEUE (Form 2) ───────────────────────────────────────────────
+    with sub_queue:
+        st.markdown("### Reaction Queue")
+        st.caption("Updated every 2 hours, 6am–10pm UAE. Quick-take posts ready to copy and publish.")
+
+        try:
+            with open("data/reaction_queue.json") as _f:
+                _queue_data = json.load(_f)
+            _all_posts   = _queue_data.get("posts", [])
+            _last_upd    = _queue_data.get("last_updated", "")[:16].replace("T", " ")
+            st.caption(f"Last updated: {_last_upd} UTC")
+        except (FileNotFoundError, json.JSONDecodeError):
+            _all_posts = []
+            st.info("No reaction posts yet. The radar runs every 2 hours during UAE business hours.")
+
+        _pending = [p for p in _all_posts if p.get("status") == "pending"]
+
+        if not _pending:
+            st.success("Queue is empty — nothing pending right now.")
+        else:
+            st.markdown(f"**{len(_pending)} posts pending**")
+            st.divider()
+
+        _platform_icon = {"X": "🐦", "substack_note": "📧"}
+
+        for _i, _post in enumerate(_pending):
+            _plat    = _post.get("platform", "X")
+            _icon    = _platform_icon.get(_plat, "📝")
+            _topic   = _post.get("topic", "")
+            _content = _post.get("content", "")
+            _src     = _post.get("source_headline", "")
+            _ts      = _post.get("generated_at", "")[:16].replace("T", " ")
+
+            st.markdown(f"**{_icon} {_plat}** · {_topic} · _{_ts} UTC_")
+            if _src:
+                st.caption(f"Source: {_src}")
+
+            st.text_area("", _content, height=100 if _plat == "X" else 160, key=f"rq_{_i}")
+
+            _col_a, _col_b = st.columns(2)
+            with _col_a:
+                if st.button("✅ Copy & Mark Done", key=f"done_{_i}", use_container_width=True):
+                    st.session_state[f"copied_{_i}"] = True
+            with _col_b:
+                if st.button("❌ Skip", key=f"skip_{_i}", use_container_width=True):
+                    st.session_state[f"skipped_{_i}"] = True
+
+            if st.session_state.get(f"copied_{_i}"):
+                st.code(_content, language=None)
+                st.caption("Text above is easy to select — copy it then post.")
+            if st.session_state.get(f"skipped_{_i}"):
+                st.caption("Skipped.")
+
+            st.divider()
+
+    # ── PERFORMANCE (Tracking) ────────────────────────────────────────────────
+    with sub_perf:
+        st.markdown("### Track a Post")
+        st.caption("Add posts here after publishing. X metrics auto-update nightly via GitHub Actions.")
+
+        try:
+            with open("data/performance_log.json") as _f:
+                _perf_data = json.load(_f)
+            _perf_posts = _perf_data.get("posts", [])
+        except (FileNotFoundError, json.JSONDecodeError):
+            _perf_posts = []
+
+        with st.form("track_post_form"):
+            _tc1, _tc2 = st.columns([3, 1])
+            with _tc1:
+                _url_input = st.text_input("X post URL or tweet ID", placeholder="https://x.com/MuneebNaseem/status/...")
+            with _tc2:
+                _platform_sel = st.selectbox("Platform", ["X", "LinkedIn", "Substack"])
+            _topic_input  = st.text_input("Topic / pillar", placeholder="e.g. Stablecoin bifurcation")
+            _format_input = st.selectbox("Format", ["Long-form post", "Thread", "Reaction post", "LinkedIn article", "Substack essay"])
+            _track_btn    = st.form_submit_button("➕ Track Post", use_container_width=True)
+
+            if _track_btn and _url_input.strip():
+                _tweet_id = _url_input.strip().split("/")[-1].split("?")[0]
+                _new_entry = {
+                    "id":        _tweet_id,
+                    "platform":  _platform_sel,
+                    "topic":     _topic_input,
+                    "format":    _format_input,
+                    "posted_at": datetime.now(timezone.utc).isoformat(),
+                    "metrics":   {},
+                }
+                _perf_posts.append(_new_entry)
+                os.makedirs("data", exist_ok=True)
+                with open("data/performance_log.json", "w") as _f:
+                    json.dump({"posts": _perf_posts}, _f, indent=2)
+                st.success(f"Now tracking {_tweet_id}. Metrics will appear after tonight's tracker run.")
+
+        if _perf_posts:
+            st.markdown("### Performance Log")
+            st.caption("Likes / Replies / Reposts fetched nightly from X API.")
+
+            _perf_rows = []
+            for _p in reversed(_perf_posts):
+                _m = _p.get("metrics", {})
+                _perf_rows.append({
+                    "Posted":      _p.get("posted_at", "")[:10],
+                    "Platform":    _p.get("platform", ""),
+                    "Format":      _p.get("format", ""),
+                    "Topic":       _p.get("topic", ""),
+                    "Likes":       _m.get("like_count", "—"),
+                    "Replies":     _m.get("reply_count", "—"),
+                    "Reposts":     _m.get("retweet_count", "—"),
+                    "Quotes":      _m.get("quote_count", "—"),
+                    "Impressions": _m.get("impression_count", "—"),
+                })
+            st.dataframe(pd.DataFrame(_perf_rows), use_container_width=True, hide_index=True)
+
+            if len(_perf_posts) >= 3:
+                st.markdown("### What's Working")
+                _df_perf = pd.DataFrame(_perf_rows)
+                _numeric = _df_perf[_df_perf["Likes"] != "—"].copy()
+                if not _numeric.empty:
+                    _numeric["Likes"] = pd.to_numeric(_numeric["Likes"])
+                    _by_format = _numeric.groupby("Format")["Likes"].mean().sort_values(ascending=False)
+                    st.bar_chart(_by_format)
