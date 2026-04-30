@@ -8,7 +8,7 @@ from db.database import (
     select_hook, update_idea_status, insert_script, get_script_for_idea,
     insert_shorts, get_shorts_for_script,
 )
-from engine.hook_generator import generate_hooks
+from engine.hook_jury import generate_and_evaluate_hooks
 from engine.script_generator import generate_script
 from engine.shorts_extractor import extract_shorts
 
@@ -61,57 +61,123 @@ st.markdown("## Step 1 — Hook")
 
 existing_hooks = get_hooks_for_idea(idea["id"])
 
+JUROR_LABELS = {
+    "hook_architect":    "🏗️ Hook Architect",
+    "algorithm_analyst": "📊 Algorithm Analyst",
+    "audience_advocate": "👥 Audience Advocate",
+}
+JUROR_DESCRIPTIONS = {
+    "hook_architect":    "Technical compliance — universal trap, money rule, specificity, rhythm",
+    "algorithm_analyst": "YouTube performance — scroll-stopping power, CTR, retention commitment",
+    "audience_advocate": "Viewer experience — credibility, relevance, emotional hook",
+}
+
 if not existing_hooks:
-    if st.button("🪝 Generate 3 Hook Options", type="primary", use_container_width=True):
-        with st.spinner("Generating hooks — this takes ~20 seconds…"):
-            try:
-                hooks = generate_hooks(
-                    topic=idea["topic"],
-                    fr_angle=idea.get("fr_angle", ""),
-                )
-                insert_hooks(idea["id"], hooks)
-                update_idea_status(idea["id"], "hook_drafted")
-                st.success("Hooks generated!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Hook generation failed: {e}")
+    st.info(
+        "The jury system generates 5 hook candidates, then runs 3 specialist agents in parallel "
+        "to score and rank them. You choose from the top 3. Takes ~45 seconds."
+    )
+    col_gen, col_info = st.columns([2, 3])
+    with col_gen:
+        if st.button("🪝 Generate Hooks + Run Jury", type="primary", use_container_width=True):
+            with st.spinner("Generating 5 hooks and convening the jury — 3 agents scoring in parallel… (~45 seconds)"):
+                try:
+                    top3 = generate_and_evaluate_hooks(
+                        topic=idea["topic"],
+                        fr_angle=idea.get("fr_angle", ""),
+                    )
+                    insert_hooks(idea["id"], top3)
+                    update_idea_status(idea["id"], "hook_drafted")
+                    st.success("Jury complete — top 3 hooks ranked and ready.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Hook jury failed: {e}")
+    with col_info:
+        with st.expander("How the jury works"):
+            for name, desc in JUROR_DESCRIPTIONS.items():
+                st.markdown(f"**{JUROR_LABELS[name]}** — {desc}")
+            st.caption("Each juror scores 0–10. Hooks ranked by aggregate (max 30). Top 3 presented to you.")
+
 else:
     selected_hook = next((h for h in existing_hooks if h["selected"]), None)
 
     if not selected_hook:
-        st.markdown("**Choose your hook:**")
-        for hook in existing_hooks:
+        st.markdown("**The jury has spoken. Choose your hook:**")
+        st.caption("Ranked by aggregate jury score (highest first). All 3 passed the cut.")
+
+        for rank, hook in enumerate(existing_hooks, 1):
+            label = HOOK_TYPE_LABELS.get(hook["hook_type"], hook["hook_type"])
+            jury = hook.get("jury", {})
+            aggregate = hook.get("aggregate_score", 0)
+            max_score = hook.get("max_possible", 30)
+            score_pct = int((aggregate / max_score) * 100) if max_score else 0
+
+            rank_emoji = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, "🔵")
+
             with st.container(border=True):
-                label = HOOK_TYPE_LABELS.get(hook["hook_type"], hook["hook_type"])
-                st.markdown(f"**{label}**")
+                # Header row
+                h_col1, h_col2 = st.columns([4, 1])
+                with h_col1:
+                    st.markdown(f"### {rank_emoji} Rank #{rank} — {label}")
+                with h_col2:
+                    st.metric("Jury Score", f"{aggregate:.0f}/30", delta=f"{score_pct}%")
+
+                # Hook text
                 st.markdown(hook["hook_text"])
                 if hook.get("trap_check"):
-                    st.caption(f"🎯 Universal trap: {hook['trap_check']}")
-                if st.button(f"✅ Select This Hook", key=f"select_hook_{hook['id']}", type="primary"):
+                    st.caption(f"🎯 Universal trap check: *{hook['trap_check']}*")
+
+                # Jury breakdown
+                if jury:
+                    with st.expander("📋 Jury Breakdown", expanded=(rank == 1)):
+                        j_cols = st.columns(3)
+                        for col, (juror_name, _) in zip(j_cols, JUROR_LABELS.items()):
+                            verdict = jury.get(juror_name, {})
+                            with col:
+                                st.markdown(f"**{JUROR_LABELS[juror_name]}**")
+                                st.caption(JUROR_DESCRIPTIONS[juror_name])
+                                st.metric("Score", f"{verdict.get('total', 0)}/10")
+                                if verdict.get("verdict"):
+                                    st.success(f"✅ {verdict['verdict']}")
+                                if verdict.get("improvement"):
+                                    st.info(f"💡 {verdict['improvement']}")
+
+                # Select button
+                if st.button(f"✅ Select This Hook", key=f"select_hook_{hook['id']}", type="primary", use_container_width=True):
                     select_hook(hook["id"])
-                    st.success("Hook selected!")
+                    st.success("Hook selected! Proceeding to script generation.")
                     st.rerun()
 
         st.divider()
-        if st.button("🔄 Regenerate Hooks", use_container_width=True):
-            with st.spinner("Regenerating hooks…"):
+        if st.button("🔄 Regenerate — Run Jury Again", use_container_width=True):
+            with st.spinner("Regenerating hooks and running jury (~45 seconds)…"):
                 try:
-                    hooks = generate_hooks(
+                    top3 = generate_and_evaluate_hooks(
                         topic=idea["topic"],
                         fr_angle=idea.get("fr_angle", ""),
                     )
-                    insert_hooks(idea["id"], hooks)
-                    st.success("New hooks generated!")
+                    insert_hooks(idea["id"], top3)
+                    st.success("New jury results ready.")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Hook generation failed: {e}")
+                    st.error(f"Hook jury failed: {e}")
+
     else:
         label = HOOK_TYPE_LABELS.get(selected_hook["hook_type"], selected_hook["hook_type"])
-        st.success(f"✅ Hook selected: **{label}**")
-        with st.expander("View selected hook", expanded=False):
+        aggregate = selected_hook.get("aggregate_score", 0)
+        st.success(f"✅ Hook selected: **{label}** — Jury score: **{aggregate:.0f}/30**")
+        with st.expander("View selected hook + jury verdicts", expanded=False):
             st.markdown(selected_hook["hook_text"])
-            if selected_hook.get("trap_check"):
-                st.caption(f"🎯 Universal trap: {selected_hook['trap_check']}")
+            jury = selected_hook.get("jury", {})
+            if jury:
+                j_cols = st.columns(3)
+                for col, (juror_name, _) in zip(j_cols, JUROR_LABELS.items()):
+                    verdict = jury.get(juror_name, {})
+                    with col:
+                        st.markdown(f"**{JUROR_LABELS[juror_name]}**")
+                        st.metric("Score", f"{verdict.get('total', 0)}/10")
+                        if verdict.get("verdict"):
+                            st.caption(verdict["verdict"])
         if st.button("↩️ Change Hook"):
             from db.database import get_connection
             conn = get_connection()

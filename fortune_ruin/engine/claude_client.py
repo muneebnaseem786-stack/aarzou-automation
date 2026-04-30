@@ -2,6 +2,10 @@ import os
 import json
 from pathlib import Path
 import anthropic
+from dotenv import load_dotenv
+
+# Load .env from the fortune_ruin root folder
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 

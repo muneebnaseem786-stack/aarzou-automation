@@ -9,6 +9,8 @@ from db.database import (
     get_ideas_by_status,
 )
 from engine.x_content_generator import generate_x_post, generate_weekly_batch, POST_TYPES
+from engine.telegram_notifier import send_post_for_approval, send_batch_for_approval
+from engine.x_poster import post_thread, post_single
 
 init_db()
 
@@ -53,11 +55,24 @@ tab_queue, tab_generate, tab_batch = st.tabs(["Post Queue", "Generate Single Pos
 with tab_queue:
     st.subheader("Post Queue")
 
-    filter_status = st.selectbox(
-        "Filter by status",
-        ["All", "draft", "approved", "scheduled", "posted"],
-        index=0,
-    )
+    tg_col, filter_col = st.columns([2, 3])
+    with tg_col:
+        if st.button("📲 Send all drafts to Telegram", type="primary", use_container_width=True):
+            drafts = get_x_posts("draft")
+            if not drafts:
+                st.info("No draft posts to send.")
+            else:
+                sent = send_batch_for_approval(drafts)
+                for p in drafts:
+                    update_x_post_status(p["id"], "approved")
+                st.success(f"✅ {sent}/{len(drafts)} posts sent to Telegram. Reply with `<id> yes` to post each one.")
+                st.rerun()
+    with filter_col:
+        filter_status = st.selectbox(
+            "Filter by status",
+            ["All", "draft", "approved", "scheduled", "posted"],
+            index=0,
+        )
 
     posts = get_x_posts(None if filter_status == "All" else filter_status)
 
@@ -92,34 +107,66 @@ with tab_queue:
 
                 # Actions
                 if post["status"] == "draft":
-                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                    btn_col1, btn_col2, btn_col3, btn_col4 = st.columns(4)
                     with btn_col1:
-                        if st.button("✅ Approve", key=f"approve_{post['id']}"):
+                        if st.button("📲 Send to Telegram", key=f"tg_{post['id']}", use_container_width=True):
+                            try:
+                                content = __import__("json").loads(post["content"])
+                                tweets = content.get("tweets", [])
+                                ok = send_post_for_approval(post["id"], post["post_type"], tweets)
+                                if ok:
+                                    update_x_post_status(post["id"], "approved")
+                                    st.success("Sent to Telegram — reply with the post ID to approve.")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to send to Telegram.")
+                            except Exception as e:
+                                st.error(f"Error: {e}")
+                    with btn_col2:
+                        if st.button("🚀 Post to X Now", key=f"postx_{post['id']}", use_container_width=True):
+                            try:
+                                content = __import__("json").loads(post["content"])
+                                tweets = [tw["content"] for tw in content.get("tweets", [])]
+                                if len(tweets) == 1:
+                                    tid = post_single(tweets[0])
+                                    tids = [tid]
+                                else:
+                                    tids = post_thread(tweets)
+                                update_x_post_status(post["id"], "posted", tids[0])
+                                st.success(f"✅ Posted! https://x.com/FortuneAndRuin/status/{tids[0]}")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"X posting failed: {e}")
+                    with btn_col3:
+                        if st.button("✅ Approve", key=f"approve_{post['id']}", use_container_width=True):
                             update_x_post_status(post["id"], "approved")
                             st.rerun()
-                    with btn_col2:
-                        sched_date = st.date_input(
-                            "Schedule for",
-                            value=date.today() + timedelta(days=1),
-                            key=f"sched_date_{post['id']}",
-                            label_visibility="collapsed",
-                        )
-                        if st.button("📅 Schedule", key=f"sched_{post['id']}"):
-                            update_x_post_status(post["id"], "scheduled")
-                            st.rerun()
-                    with btn_col3:
-                        if st.button("🗑️ Reject", key=f"reject_{post['id']}"):
+                    with btn_col4:
+                        if st.button("🗑️ Reject", key=f"reject_{post['id']}", use_container_width=True):
                             update_x_post_status(post["id"], "rejected")
                             st.rerun()
 
                 elif post["status"] == "approved":
-                    if st.button(
-                        "✅ Mark as Posted (manual)",
-                        key=f"posted_{post['id']}",
-                        use_container_width=True,
-                    ):
-                        update_x_post_status(post["id"], "posted")
-                        st.rerun()
+                    ap_col1, ap_col2 = st.columns(2)
+                    with ap_col1:
+                        if st.button("🚀 Post to X Now", key=f"postx_ap_{post['id']}", use_container_width=True, type="primary"):
+                            try:
+                                content = __import__("json").loads(post["content"])
+                                tweets = [tw["content"] for tw in content.get("tweets", [])]
+                                if len(tweets) == 1:
+                                    tid = post_single(tweets[0])
+                                    tids = [tid]
+                                else:
+                                    tids = post_thread(tweets)
+                                update_x_post_status(post["id"], "posted", tids[0])
+                                st.success(f"✅ Posted! https://x.com/FortuneAndRuin/status/{tids[0]}")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"X posting failed: {e}")
+                    with ap_col2:
+                        if st.button("✅ Mark as Posted (manual)", key=f"posted_{post['id']}", use_container_width=True):
+                            update_x_post_status(post["id"], "posted")
+                            st.rerun()
 
 
 # ─── GENERATE SINGLE POST ─────────────────────────────────────────────────────

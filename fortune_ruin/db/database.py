@@ -33,13 +33,16 @@ def init_db():
     );
 
     CREATE TABLE IF NOT EXISTS hooks (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-        idea_id     INTEGER NOT NULL REFERENCES ideas(id),
-        hook_text   TEXT NOT NULL,
-        hook_type   TEXT,
-        trap_check  TEXT,
-        selected    INTEGER DEFAULT 0,
-        created_at  DATETIME DEFAULT (datetime('now'))
+        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+        idea_id             INTEGER NOT NULL REFERENCES ideas(id),
+        hook_text           TEXT NOT NULL,
+        hook_type           TEXT,
+        trap_check          TEXT,
+        selected            INTEGER DEFAULT 0,
+        aggregate_score     REAL DEFAULT 0,
+        jury_verdicts       TEXT,
+        jury_ran            INTEGER DEFAULT 0,
+        created_at          DATETIME DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS scripts (
@@ -166,22 +169,45 @@ def insert_idea(topic, fr_angle="", source_signals="", keyword_demand="",
 
 
 def insert_hooks(idea_id: int, hooks: list[dict]):
+    import json
     conn = get_connection()
     conn.executemany(
-        "INSERT INTO hooks (idea_id, hook_text, hook_type, trap_check) VALUES (?, ?, ?, ?)",
-        [(idea_id, h["hook_text"], h.get("hook_type", ""), h.get("trap_check", "")) for h in hooks]
+        """INSERT INTO hooks
+           (idea_id, hook_text, hook_type, trap_check, aggregate_score, jury_verdicts, jury_ran)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        [(
+            idea_id,
+            h["hook_text"],
+            h.get("hook_type", ""),
+            h.get("trap_check", ""),
+            h.get("aggregate_score", 0),
+            json.dumps(h.get("jury", {})) if h.get("jury") else None,
+            1 if h.get("jury") else 0,
+        ) for h in hooks]
     )
     conn.commit()
     conn.close()
 
 
 def get_hooks_for_idea(idea_id: int):
+    import json
     conn = get_connection()
     rows = conn.execute(
-        "SELECT * FROM hooks WHERE idea_id = ? ORDER BY id", (idea_id,)
+        "SELECT * FROM hooks WHERE idea_id = ? ORDER BY aggregate_score DESC, id ASC", (idea_id,)
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        if d.get("jury_verdicts"):
+            try:
+                d["jury"] = json.loads(d["jury_verdicts"])
+            except Exception:
+                d["jury"] = {}
+        else:
+            d["jury"] = {}
+        result.append(d)
+    return result
 
 
 def select_hook(hook_id: int):
@@ -245,24 +271,29 @@ def get_all_videos():
 
 def upsert_video(data: dict):
     conn = get_connection()
-    if data.get("youtube_id"):
+
+    # Determine all valid column names for the videos table
+    valid_cols = {row[1] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+    safe_data = {k: v for k, v in data.items() if k in valid_cols}
+
+    if safe_data.get("youtube_id"):
         existing = conn.execute(
-            "SELECT id FROM videos WHERE youtube_id = ?", (data["youtube_id"],)
+            "SELECT id FROM videos WHERE youtube_id = ?", (safe_data["youtube_id"],)
         ).fetchone()
         if existing:
-            fields = [k for k in data if k != "youtube_id"]
+            fields = [k for k in safe_data if k != "youtube_id"]
             sets = ", ".join(f"{f} = ?" for f in fields)
-            vals = [data[f] for f in fields] + [data["youtube_id"]]
+            vals = [safe_data[f] for f in fields] + [safe_data["youtube_id"]]
             conn.execute(f"UPDATE videos SET {sets} WHERE youtube_id = ?", vals)
             conn.commit()
             conn.close()
             return existing["id"]
+
+    cols = ", ".join(safe_data.keys())
+    placeholders = ", ".join("?" for _ in safe_data)
     cur = conn.execute(
-        """INSERT INTO videos (title, youtube_id, title_formula, hook_type, topic_category,
-           published_at, is_short, idea_id)
-           VALUES (:title, :youtube_id, :title_formula, :hook_type, :topic_category,
-           :published_at, :is_short, :idea_id)""",
-        data
+        f"INSERT INTO videos ({cols}) VALUES ({placeholders})",
+        list(safe_data.values()),
     )
     vid_id = cur.lastrowid
     conn.commit()

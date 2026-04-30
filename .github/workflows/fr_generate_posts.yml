@@ -1,0 +1,45 @@
+name: F&R — Generate Daily X Post
+
+on:
+  schedule:
+    # noon UAE  = 08:00 UTC (UTC+4)
+    - cron: "0 8 * * *"
+    # 5pm UAE   = 13:00 UTC
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      post_type:
+        description: "Post type (leave blank for auto)"
+        required: false
+        default: ""
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install anthropic requests python-dotenv tweepy
+
+      - name: Generate post and send to Telegram
+        env:
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
+        run: |
+          cd automation
+          POST_TYPE="${{ github.event.inputs.post_type }}"
+          if [ -n "$POST_TYPE" ]; then
+            python fortune_ruin/scripts/generate_daily_post.py "$POST_TYPE"
+          else
+            python fortune_ruin/scripts/generate_daily_post.py
+          fi

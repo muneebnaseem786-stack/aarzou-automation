@@ -6,12 +6,95 @@ import streamlit as st
 from db.database import (
     get_ideas_by_status, insert_idea, update_idea_status, init_db
 )
+from engine.idea_generator import generate_ideas
 
 init_db()
 
 st.set_page_config(page_title="Idea Pipeline · F&R", layout="wide")
 st.title("💡 Idea Pipeline")
 st.caption("Manage your episode ideas from concept to production.")
+
+# ── GENERATE IDEAS (AI-powered) ──────────────────────────────────────────────
+with st.container(border=True):
+    st.markdown("### 🤖 Generate Ideas")
+    st.caption(
+        "Scans Reddit (top posts, last 7 days) + YouTube (top videos in niche, last 90 days) "
+        "then uses Claude to synthesise 8 ranked F&R episode ideas."
+    )
+    col_btn, col_note = st.columns([1, 3])
+    with col_btn:
+        generate_btn = st.button("🔍 Generate Ideas Now", type="primary", use_container_width=True)
+    with col_note:
+        st.info(
+            "Requires: `YOUTUBE_API_KEY` for YouTube signals. "
+            "Reddit works without credentials. Claude synthesis always runs."
+        )
+
+    if generate_btn:
+        status_placeholder = st.empty()
+        progress_bar = st.progress(0, text="Starting…")
+        steps = [0.15, 0.50, 0.85]
+        step_idx = [0]
+
+        def _progress(msg):
+            idx = step_idx[0]
+            progress_bar.progress(steps[min(idx, len(steps)-1)], text=msg)
+            status_placeholder.caption(f"⏳ {msg}")
+            step_idx[0] += 1
+
+        try:
+            ideas = generate_ideas(progress_callback=_progress)
+            progress_bar.progress(1.0, text="Done!")
+            status_placeholder.empty()
+
+            if not ideas:
+                st.warning("No ideas returned — check API keys and try again.")
+            else:
+                st.success(f"✅ {len(ideas)} ideas generated. Review below and add to pipeline.")
+                st.session_state["generated_ideas"] = ideas
+                st.rerun()
+        except Exception as e:
+            progress_bar.empty()
+            st.error(f"Idea generation failed: {e}")
+
+    # Show generated ideas if in session
+    if "generated_ideas" in st.session_state:
+        ideas_data = st.session_state["generated_ideas"]
+        st.markdown(f"**{len(ideas_data)} ideas ready — click to add any to your pipeline:**")
+        for idea in ideas_data:
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([4, 2, 1])
+                with c1:
+                    st.markdown(f"**#{idea['rank']} — {idea['topic']}**")
+                    st.caption(f"🎯 {idea['fr_angle']}")
+                    if idea.get("why_now"):
+                        st.caption(f"⚡ Why now: {idea['why_now']}")
+                    if idea.get("suggested_title"):
+                        st.markdown(f"*Suggested title: {idea['suggested_title']}*")
+                with c2:
+                    st.caption(f"📈 Demand: {idea.get('keyword_demand', '—')}")
+                    st.caption(f"🏁 Competition: {idea.get('competition_score', '—')}")
+                    fit = idea.get("fit_score", 0)
+                    st.caption(f"⭐ F&R Fit: {fit}/10")
+                with c3:
+                    if st.button("➕ Add", key=f"add_gen_{idea['rank']}", use_container_width=True):
+                        insert_idea(
+                            topic=idea["topic"],
+                            fr_angle=idea.get("fr_angle", ""),
+                            source_signals=idea.get("source_signals", ""),
+                            keyword_demand=idea.get("keyword_demand", ""),
+                            competition_score=idea.get("competition_score", ""),
+                            suggested_title=idea.get("suggested_title", ""),
+                            notes=idea.get("why_now", ""),
+                        )
+                        st.success(f"Added: {idea['topic']}")
+                        st.rerun()
+
+        if st.button("🗑️ Clear generated ideas", use_container_width=False):
+            del st.session_state["generated_ideas"]
+            st.rerun()
+
+st.divider()
 
 # ── COVERED TOPICS (from brain file, used for duplicate detection) ──────────
 COVERED_TOPICS = [

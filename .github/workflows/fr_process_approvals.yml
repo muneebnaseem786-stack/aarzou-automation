@@ -1,0 +1,42 @@
+name: F&R — Process Telegram Approvals
+
+on:
+  schedule:
+    # Every 15 minutes — polls Telegram for YES/NO replies and posts to X
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  # Required to read/write the FR_LAST_UPDATE_ID repository variable
+  actions: write
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install tweepy requests python-dotenv
+
+      - name: Process approvals
+        env:
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
+          X_API_KEY:             ${{ secrets.X_API_KEY }}
+          X_API_SECRET:          ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN:        ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          GITHUB_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:     ${{ github.repository }}
+        run: |
+          cd automation
+          python fortune_ruin/scripts/process_telegram_approvals.py
