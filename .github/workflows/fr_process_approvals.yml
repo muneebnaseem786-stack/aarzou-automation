@@ -1,10 +1,11 @@
 name: F&R — Process Telegram Approvals
 
 on:
-  schedule:
-    # Every 15 minutes — polls Telegram for YES/NO replies and posts to X
-    - cron: "*/15 * * * *"
+  # Disabled — X API Basic plan required to auto-post
+  # Re-enable the schedule below when upgrading to paid X API
   workflow_dispatch: {}
+  # schedule:
+  #   - cron: "*/15 * * * *"
 
 permissions:
   # Required to read/write the FR_LAST_UPDATE_ID repository variable

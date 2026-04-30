@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env", override=True)
 
 
 # ── Telegram helpers ──────────────────────────────────────────────────────────
@@ -111,31 +111,64 @@ def generate_post(post_type: str, context: str) -> list[str]:
 
 # ── Format Telegram message ───────────────────────────────────────────────────
 
-def format_message(post_type: str, tweets: list[str], slot_label: str) -> str:
+def format_message(post_type: str, tweets: list[str], slot_label: str, typefully_url: str = "") -> str:
     label = POST_TYPE_LABELS.get(post_type, post_type)
 
+    # Thread content block — paste directly into Typefully or any thread composer
+    thread_block = "\n\n---\n\n".join(tweets)
+
     lines = [
-        f"🐦 Fortune & Ruin — Daily X Post",
-        f"Type: {label} | {slot_label}",
+        f"🐦 Fortune & Ruin — {label}",
+        f"{slot_label} · {len(tweets)} tweets",
         "",
-        "─────────────────────────────",
     ]
 
-    for i, tweet in enumerate(tweets, 1):
-        lines.append(f"Tweet {i}/{len(tweets)}:")
-        lines.append(tweet)
-        lines.append("")
-
-    lines += [
-        "─────────────────────────────",
-        "Reply YES to post to @FortuneAndRuin",
-        "Reply NO to skip",
-        "",
-        # Machine-readable block parsed by process_telegram_approvals.py
-        f"TWEETS_JSON:{json.dumps(tweets)}",
-    ]
+    if typefully_url:
+        lines += [
+            f"✅ Draft ready in Typefully:",
+            typefully_url,
+            "",
+            "Open the link → review → Schedule or Post Now.",
+        ]
+    else:
+        lines += [
+            "── Copy block below into Typefully / X composer ──",
+            "",
+            thread_block,
+            "",
+            "──────────────────────────────────────────────────",
+        ]
 
     return "\n".join(lines)
+
+
+# ── Typefully integration ─────────────────────────────────────────────────────
+
+def create_typefully_draft(tweets: list[str]) -> str:
+    """
+    Creates a thread draft in Typefully. Returns the draft URL, or empty string on failure.
+    Requires TYPEFULLY_API_KEY in env.
+    Thread format: tweets joined by double-newline + --- separator.
+    """
+    api_key = os.environ.get("TYPEFULLY_API_KEY", "")
+    if not api_key:
+        return ""
+
+    content = "\n\n---\n\n".join(tweets)
+    try:
+        resp = requests.post(
+            "https://api.typefully.com/v1/drafts/",
+            headers={"X-API-KEY": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"content": content, "threadify": False},
+            timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            data = resp.json()
+            # Typefully returns share_url or we build it from the id
+            return data.get("share_url") or data.get("url") or ""
+    except Exception as e:
+        print(f"[generate] Typefully error (non-fatal): {e}")
+    return ""
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -159,16 +192,50 @@ def main():
     tweets = generate_post(post_type, context)
     print(f"[generate] Got {len(tweets)} tweets")
 
-    message = format_message(post_type, tweets, slot_label)
+    print("[generate] Creating Typefully draft...")
+    typefully_url = create_typefully_draft(tweets)
+    if typefully_url:
+        print(f"[generate] Typefully draft: {typefully_url}")
+    else:
+        print("[generate] No Typefully key — sending full text to Telegram")
+
+    message = format_message(post_type, tweets, slot_label, typefully_url)
     result = send_telegram(message)
 
     if result.get("ok"):
         msg_id = result["result"]["message_id"]
         print(f"[generate] Sent to Telegram (message_id={msg_id})")
-        print("[generate] Done. Reply YES or NO in Telegram.")
+        print("[generate] Done.")
     else:
         print(f"[generate] Telegram error: {result}")
         sys.exit(1)
+
+
+def _save_last_post(tweets: list[str], post_type: str):
+    """Persist last generated post so approval script can find it without a reply."""
+    data = json.dumps({"tweets": tweets, "post_type": post_type})
+
+    # Local file (works when running from the laptop)
+    last_post_file = Path(__file__).parent.parent / ".last_post.json"
+    last_post_file.write_text(data, encoding="utf-8")
+
+    # GitHub repo variable (works in GitHub Actions)
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if repo and token:
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        }
+        payload = {"name": "FR_LAST_POST_JSON", "value": data}
+        url = f"https://api.github.com/repos/{repo}/actions/variables/FR_LAST_POST_JSON"
+        resp = requests.patch(url, json=payload, headers=headers, timeout=10)
+        if resp.status_code == 404:
+            requests.post(
+                f"https://api.github.com/repos/{repo}/actions/variables",
+                json=payload, headers=headers, timeout=10,
+            )
 
 
 if __name__ == "__main__":

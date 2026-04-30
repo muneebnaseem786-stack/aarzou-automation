@@ -26,7 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / ".env")
+load_dotenv(Path(__file__).parent.parent / ".env", override=True)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -121,6 +121,32 @@ def extract_tweets(message_text: str) -> list[str] | None:
         return None
 
 
+def load_last_post() -> list[str] | None:
+    """Fallback: load the most recently generated post (used for standalone YES)."""
+    # Try local file first (when running from laptop)
+    last_post_file = Path(__file__).parent.parent / ".last_post.json"
+    if last_post_file.exists():
+        try:
+            data = json.loads(last_post_file.read_text(encoding="utf-8"))
+            return data.get("tweets")
+        except Exception:
+            pass
+
+    # Try GitHub repo variable (when running in GitHub Actions)
+    repo = _gh_repo()
+    if repo:
+        url = f"https://api.github.com/repos/{repo}/actions/variables/FR_LAST_POST_JSON"
+        try:
+            resp = requests.get(url, headers=_gh_headers(), timeout=10)
+            if resp.status_code == 200:
+                data = json.loads(resp.json().get("value", "{}"))
+                return data.get("tweets")
+        except Exception:
+            pass
+
+    return None
+
+
 # ── X posting ─────────────────────────────────────────────────────────────────
 
 def post_to_x(tweets: list[str]) -> str:
@@ -164,21 +190,22 @@ def main():
         if chat_id != _tg_chat_id():
             continue
 
-        # Must be a reply to one of our bot messages
-        reply_to = msg.get("reply_to_message")
-        if not reply_to:
-            continue
-
         text = msg.get("text", "").strip().lower()
-        original_text = reply_to.get("text", "")
+        reply_to = msg.get("reply_to_message")
 
-        tweets = extract_tweets(original_text)
+        # Get tweets from the replied-to message, or fall back to last generated post
+        if reply_to:
+            tweets = extract_tweets(reply_to.get("text", ""))
+        else:
+            tweets = None  # will use load_last_post() fallback
 
         if text in YES_WORDS:
+            if tweets is None:
+                tweets = load_last_post()
             if not tweets:
                 send_telegram(
-                    "⚠️ Could not find tweet content in the original message. "
-                    "Make sure you reply directly to the post notification."
+                    "⚠️ Could not find the post to publish. "
+                    "Try replying directly to the post notification message."
                 )
                 continue
 
@@ -195,6 +222,10 @@ def main():
                 errors += 1
 
         elif text in NO_WORDS:
+            # Clear the last post file so it can't be accidentally approved later
+            last_post_file = Path(__file__).parent.parent / ".last_post.json"
+            if last_post_file.exists():
+                last_post_file.unlink()
             send_telegram("🗑️ Post skipped.")
             print("[approvals] Post rejected by user.")
             processed += 1
