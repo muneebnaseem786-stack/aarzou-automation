@@ -1,0 +1,32 @@
+name: F&R — Daily Reply Suggestions
+
+on:
+  schedule:
+    # 08:00 UAE = 04:00 UTC — arrives before the day starts
+    - cron: "0 4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  suggest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install anthropic requests python-dotenv
+
+      - name: Generate reply suggestions
+        env:
+          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
+        run: |
+          cd automation
+          python fortune_ruin/scripts/generate_reply_suggestions.py

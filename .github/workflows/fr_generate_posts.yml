@@ -2,11 +2,11 @@ name: F&R — Generate Daily X Post
 
 on:
   schedule:
-    # 09:00 UAE = 05:00 UTC
-    - cron: "0 5 * * *"
-    # 16:00 UAE = 12:00 UTC
+    # 12:00 UAE = 08:00 UTC  (noon UAE — good morning engagement)
+    - cron: "0 8 * * *"
+    # 16:00 UAE = 12:00 UTC  (4pm UAE = noon EST — peak X window)
     - cron: "0 12 * * *"
-    # 22:00 UAE = 18:00 UTC
+    # 22:00 UAE = 18:00 UTC  (10pm UAE = 6pm EST — evening peak)
     - cron: "0 18 * * *"
   workflow_dispatch:
     inputs:
