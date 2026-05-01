@@ -191,43 +191,15 @@ def main():
             continue
 
         text = msg.get("text", "").strip().lower()
-        reply_to = msg.get("reply_to_message")
-
-        # Get tweets from the replied-to message, or fall back to last generated post
-        if reply_to:
-            tweets = extract_tweets(reply_to.get("text", ""))
-        else:
-            tweets = None  # will use load_last_post() fallback
 
         if text in YES_WORDS:
-            if tweets is None:
-                tweets = load_last_post()
-            if not tweets:
-                send_telegram(
-                    "⚠️ Could not find the post to publish. "
-                    "Try replying directly to the post notification message."
-                )
-                continue
-
-            print(f"[approvals] Posting {len(tweets)} tweet(s) to X...")
-            try:
-                tweet_id = post_to_x(tweets)
-                url = f"https://x.com/FortuneAndRuin/status/{tweet_id}"
-                send_telegram(f"✅ Posted to X!\n{url}")
-                print(f"[approvals] Posted: {url}")
-                processed += 1
-            except Exception as e:
-                send_telegram(f"❌ Failed to post to X: {e}")
-                print(f"[approvals] X post error: {e}")
-                errors += 1
+            send_telegram("✅ Logged. Keep building the brand.")
+            print("[approvals] User confirmed posted.")
+            processed += 1
 
         elif text in NO_WORDS:
-            # Clear the last post file so it can't be accidentally approved later
-            last_post_file = Path(__file__).parent.parent / ".last_post.json"
-            if last_post_file.exists():
-                last_post_file.unlink()
-            send_telegram("🗑️ Post skipped.")
-            print("[approvals] Post rejected by user.")
+            send_telegram("Ok, skipping this one.")
+            print("[approvals] User skipped.")
             processed += 1
 
     # Always advance the offset so we don't reprocess

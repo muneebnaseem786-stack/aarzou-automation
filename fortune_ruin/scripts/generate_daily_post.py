@@ -111,22 +111,16 @@ def generate_post(post_type: str, context: str) -> list[str]:
 
 # ── Format Telegram message ───────────────────────────────────────────────────
 
-def format_message(post_type: str, tweets: list[str], slot_label: str) -> str:
-    label = POST_TYPE_LABELS.get(post_type, post_type)
-    thread_block = "\n\n---\n\n".join(tweets)
+def send_thread_as_messages(tweets: list[str]) -> bool:
+    """Send each tweet as its own Telegram message, then a final prompt."""
+    for tweet in tweets:
+        result = send_telegram(tweet)
+        if not result.get("ok"):
+            return False
 
-    lines = [
-        f"🐦 Fortune & Ruin — {label}",
-        f"{slot_label} · {len(tweets)} tweets",
-        "",
-        "── Copy into X thread composer ──",
-        "",
-        thread_block,
-        "",
-        "─────────────────────────────────",
-    ]
-
-    return "\n".join(lines)
+    # Final prompt — user replies YES/NO to this
+    send_telegram(f"({len(tweets)} tweets above) — Reply YES when posted on X, NO to skip.")
+    return True
 
 
 # ── Typefully integration ─────────────────────────────────────────────────────
@@ -179,15 +173,11 @@ def main():
     tweets = generate_post(post_type, context)
     print(f"[generate] Got {len(tweets)} tweets")
 
-    message = format_message(post_type, tweets, slot_label)
-    result = send_telegram(message)
-
-    if result.get("ok"):
-        msg_id = result["result"]["message_id"]
-        print(f"[generate] Sent to Telegram (message_id={msg_id})")
-        print("[generate] Done.")
+    ok = send_thread_as_messages(tweets)
+    if ok:
+        print(f"[generate] Sent {len(tweets)} messages to Telegram.")
     else:
-        print(f"[generate] Telegram error: {result}")
+        print("[generate] Telegram send failed.")
         sys.exit(1)
 
 
