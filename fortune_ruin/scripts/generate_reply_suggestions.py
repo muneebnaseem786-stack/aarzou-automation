@@ -52,7 +52,7 @@ NITTER_INSTANCES = [
 
 MIN_POST_CHARS = 60   # skip very short posts
 MAX_POSTS_PER_ACCOUNT = 3
-MAX_SUGGESTIONS = 5   # total to send per day
+MAX_SUGGESTIONS = 3   # total to send per day
 
 
 # ── Nitter RSS fetcher ────────────────────────────────────────────────────────
@@ -146,18 +146,16 @@ def send_telegram(text: str):
         timeout=15,
     )
 
-def format_suggestion(post: dict, reply: str, index: int, total: int) -> str:
-    return (
-        f"💬 Reply {index}/{total} — @{post['author']}\n"
-        f"─────────────────────────────\n"
-        f"Their post:\n"
-        f"\"{post['text'][:200]}\"\n"
-        f"\n"
-        f"Your reply (copy this):\n"
-        f"{reply}\n"
-        f"\n"
-        f"Reply here: {post['url']}"
+def send_suggestion(post: dict, reply: str, index: int, total: int):
+    """Send 2 messages: target post info, then the reply text alone."""
+    # Message 1: context + link
+    send_telegram(
+        f"💬 {index}/{total} — @{post['author']}\n"
+        f"\"{post['text'][:250]}\"\n"
+        f"{post['url']}"
     )
+    # Message 2: pure reply text, nothing else
+    send_telegram(reply)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -192,8 +190,7 @@ def main():
         print(f"[replies] Generating reply for @{post['author']} post...")
         try:
             reply = generate_reply(post["text"], post["author"])
-            msg = format_suggestion(post, reply, i, len(selected))
-            send_telegram(msg)
+            send_suggestion(post, reply, i, len(selected))
         except Exception as e:
             print(f"[replies] Error: {e}")
             continue
