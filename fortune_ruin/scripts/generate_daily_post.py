@@ -111,15 +111,19 @@ def generate_post(post_type: str, context: str) -> list[str]:
 
 # ── Format Telegram message ───────────────────────────────────────────────────
 
-def send_thread_as_messages(tweets: list[str]) -> bool:
+def send_thread_as_messages(tweets: list[str], post_type: str) -> bool:
     """Send each tweet as its own Telegram message, then a final prompt."""
-    for tweet in tweets:
-        result = send_telegram(tweet)
+    for i, tweet in enumerate(tweets):
+        # Add thread indicator to first tweet of multi-tweet posts
+        text = tweet
+        if i == 0 and len(tweets) > 1:
+            text = tweet + " 🧵"
+        result = send_telegram(text)
         if not result.get("ok"):
             return False
 
-    # Final prompt — user replies YES/NO to this
-    send_telegram(f"({len(tweets)} tweets above) — Reply YES when posted on X, NO to skip.")
+    label = "tweet" if len(tweets) == 1 else "tweets above"
+    send_telegram(f"({len(tweets)} {label}) — Reply YES when posted on X, NO to skip.")
     return True
 
 
@@ -173,7 +177,10 @@ def main():
     tweets = generate_post(post_type, context)
     print(f"[generate] Got {len(tweets)} tweets")
 
-    ok = send_thread_as_messages(tweets)
+    # Save for logging when user confirms YES
+    _save_last_post(tweets, post_type)
+
+    ok = send_thread_as_messages(tweets, post_type)
     if ok:
         print(f"[generate] Sent {len(tweets)} messages to Telegram.")
     else:
@@ -182,8 +189,9 @@ def main():
 
 
 def _save_last_post(tweets: list[str], post_type: str):
-    """Persist last generated post so approval script can find it without a reply."""
-    data = json.dumps({"tweets": tweets, "post_type": post_type})
+    """Persist last generated post so approval script can log it on YES."""
+    topic = tweets[0][:80] if tweets else "unknown"
+    data = json.dumps({"tweets": tweets, "post_type": post_type, "topic": topic})
 
     # Local file (works when running from the laptop)
     last_post_file = Path(__file__).parent.parent / ".last_post.json"

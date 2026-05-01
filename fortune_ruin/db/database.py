@@ -121,6 +121,15 @@ def init_db():
         created_at      DATETIME DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS posted_x_content (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        topic       TEXT NOT NULL,
+        post_type   TEXT NOT NULL,
+        hook        TEXT,
+        tweets_json TEXT NOT NULL,
+        posted_at   DATETIME DEFAULT (datetime('now'))
+    );
+
     CREATE TRIGGER IF NOT EXISTS ideas_updated_at
         AFTER UPDATE ON ideas
         BEGIN
@@ -340,6 +349,28 @@ def update_x_post_status(post_id: int, status: str, x_post_id: str = None):
         conn.execute("UPDATE x_posts SET status = ? WHERE id = ?", (status, post_id))
     conn.commit()
     conn.close()
+
+
+def log_posted_x_content(topic: str, post_type: str, hook: str, tweets: list[str]):
+    """Log a confirmed-posted X thread so we never repeat the topic."""
+    import json
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO posted_x_content (topic, post_type, hook, tweets_json) VALUES (?, ?, ?, ?)",
+        (topic, post_type, hook, json.dumps(tweets))
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_posted_x_topics() -> list[str]:
+    """Return list of topics already posted on X, for use in generation prompts."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT topic FROM posted_x_content ORDER BY posted_at DESC"
+    ).fetchall()
+    conn.close()
+    return [r["topic"] for r in rows]
 
 
 if __name__ == "__main__":

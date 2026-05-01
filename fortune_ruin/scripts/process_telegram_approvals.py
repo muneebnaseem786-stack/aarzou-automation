@@ -18,6 +18,7 @@ Usage:
 import sys
 import os
 import json
+import datetime
 import re
 import requests
 from pathlib import Path
@@ -159,6 +160,26 @@ def post_to_x(tweets: list[str]) -> str:
         return ids[0]
 
 
+def _log_last_post():
+    """Read .last_post.json and log it to the SQLite DB."""
+    last_post_file = Path(__file__).parent.parent / ".last_post.json"
+    if not last_post_file.exists():
+        return
+    try:
+        data = json.loads(last_post_file.read_text(encoding="utf-8"))
+        tweets = data.get("tweets", [])
+        post_type = data.get("post_type", "unknown")
+        topic = data.get("topic", tweets[0][:60] if tweets else "unknown")
+        hook = tweets[0] if tweets else ""
+        from db.database import log_posted_x_content, init_db
+        init_db()
+        log_posted_x_content(topic, post_type, hook, tweets)
+        last_post_file.unlink()
+        print(f"[approvals] Logged posted content: {topic[:50]}")
+    except Exception as e:
+        print(f"[approvals] Could not log post: {e}")
+
+
 # ── Main logic ────────────────────────────────────────────────────────────────
 
 def main():
@@ -193,6 +214,7 @@ def main():
         text = msg.get("text", "").strip().lower()
 
         if text in YES_WORDS:
+            _log_last_post()
             send_telegram("✅ Logged. Keep building the brand.")
             print("[approvals] User confirmed posted.")
             processed += 1
