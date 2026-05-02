@@ -38,5 +38,4 @@ jobs:
           GITHUB_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY:     ${{ github.repository }}
         run: |
-          cd automation
           python fortune_ruin/scripts/process_telegram_approvals.py

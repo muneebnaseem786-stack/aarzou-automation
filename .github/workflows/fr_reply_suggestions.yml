@@ -28,5 +28,4 @@ jobs:
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
           YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
         run: |
-          cd automation
           python fortune_ruin/scripts/generate_reply_suggestions.py

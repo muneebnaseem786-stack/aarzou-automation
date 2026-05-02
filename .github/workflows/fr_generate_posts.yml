@@ -39,7 +39,6 @@ jobs:
           YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
           TYPEFULLY_API_KEY:     ${{ secrets.TYPEFULLY_API_KEY }}
         run: |
-          cd automation
           POST_TYPE="${{ github.event.inputs.post_type }}"
           if [ -n "$POST_TYPE" ]; then
             python fortune_ruin/scripts/generate_daily_post.py "$POST_TYPE"
