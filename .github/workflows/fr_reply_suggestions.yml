@@ -24,8 +24,16 @@ jobs:
 
       - name: Generate reply suggestions
         env:
-          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
-          TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python fortune_ruin/scripts/generate_reply_suggestions.py
+
+      - name: Commit cooldown file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fortune_ruin/.recent_reply_authors.json
+          git diff --cached --quiet || git commit -m "chore: update F&R reply author cooldown [skip ci]"
+          git push

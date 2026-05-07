@@ -294,7 +294,7 @@ Return ONLY the reply text. No quotes, no preamble, no style label."""
 # ── Telegram ──────────────────────────────────────────────────────────────────
 
 def _tg_token() -> str:    return os.environ["TELEGRAM_BOT_TOKEN"]
-def _tg_chat_id() -> str:  return os.environ["YOUR_TELEGRAM_CHAT_ID"]
+def _tg_chat_id() -> str:  return os.environ["TELEGRAM_CHAT_ID"]
 
 def send_telegram(text: str):
     requests.post(
