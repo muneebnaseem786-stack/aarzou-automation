@@ -30,11 +30,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install anthropic requests python-dotenv tweepy
+          pip install google-generativeai requests python-dotenv tweepy
 
       - name: Generate post and send to Telegram
         env:
-          ANTHROPIC_API_KEY:     ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN:    ${{ secrets.TELEGRAM_BOT_TOKEN }}
           YOUR_TELEGRAM_CHAT_ID: ${{ secrets.YOUR_TELEGRAM_CHAT_ID }}
           TYPEFULLY_API_KEY:     ${{ secrets.TYPEFULLY_API_KEY }}

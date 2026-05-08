@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-import anthropic
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 # Load .env from the fortune_ruin root folder
@@ -9,19 +9,25 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
-_client = None
+SYSTEM_PROMPT = "You are a professional content creator for Fortune & Ruin, a forensic financial history YouTube channel."
+
+_model = None
 
 
-def get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+def get_model() -> genai.GenerativeModel:
+    global _model
+    if _model is None:
+        api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
             raise EnvironmentError(
-                "ANTHROPIC_API_KEY not set. Add it to your environment or .env file."
+                "GEMINI_API_KEY not set. Add it to your environment or .env file."
             )
-        _client = anthropic.Anthropic(api_key=api_key)
-    return _client
+        genai.configure(api_key=api_key)
+        _model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=SYSTEM_PROMPT,
+        )
+    return _model
 
 
 def load_prompt(name: str) -> str:
@@ -29,15 +35,12 @@ def load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def call_claude(prompt: str, max_tokens: int = 4096, model: str = "claude-sonnet-4-6") -> str:
-    client = get_client()
-    message = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system="You are a professional content creator for Fortune & Ruin, a forensic financial history YouTube channel.",
-        messages=[{"role": "user", "content": prompt}],
+def call_claude(prompt: str, max_tokens: int = 4096, model: str = None) -> str:
+    response = get_model().generate_content(
+        prompt,
+        generation_config=genai.GenerationConfig(max_output_tokens=max_tokens),
     )
-    return message.content[0].text
+    return response.text
 
 
 def call_claude_json(prompt: str, max_tokens: int = 4096) -> list | dict:
