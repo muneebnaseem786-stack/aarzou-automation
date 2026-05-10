@@ -81,13 +81,14 @@ def _call_gemini(prompt: str, max_tokens: int = 4096) -> str:
 
 
 def call_claude(prompt: str, max_tokens: int = 4096, model: str = None) -> str:
-    """Call LLM. Groq primary (more reliable free tier), Gemini fallback."""
-    if os.environ.get("GROQ_API_KEY"):
+    """Call LLM. Gemini primary (better quality on these nuanced prompts),
+    Groq fallback when Gemini 429s or is unavailable."""
+    if os.environ.get("GEMINI_API_KEY"):
         try:
-            return _call_groq(prompt, max_tokens=max_tokens)
+            return _call_gemini(prompt, max_tokens=max_tokens)
         except Exception as e:
-            print(f"[llm] Groq failed: {e}, falling back to Gemini")
-    return _call_gemini(prompt, max_tokens=max_tokens)
+            print(f"[llm] Gemini failed: {e}, falling back to Groq")
+    return _call_groq(prompt, max_tokens=max_tokens)
 
 
 def call_claude_json(prompt: str, max_tokens: int = 4096) -> list | dict:
