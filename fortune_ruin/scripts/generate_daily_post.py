@@ -111,7 +111,7 @@ def generate_post(post_type: str, context: str) -> list[str]:
 
 # ── Format Telegram message ───────────────────────────────────────────────────
 
-def send_thread_as_messages(tweets: list[str], post_type: str) -> bool:
+def send_thread_as_messages(tweets: list[str], post_type: str, jury_card: str = "") -> bool:
     """Send each tweet as its own Telegram message, then a final prompt."""
     for i, tweet in enumerate(tweets):
         # Add thread indicator to first tweet of multi-tweet posts
@@ -121,6 +121,9 @@ def send_thread_as_messages(tweets: list[str], post_type: str) -> bool:
         result = send_telegram(text)
         if not result.get("ok"):
             return False
+
+    if jury_card:
+        send_telegram(jury_card)
 
     label = "tweet" if len(tweets) == 1 else "tweets above"
     send_telegram(f"({len(tweets)} {label}) — Reply YES when posted on X, NO to skip.")
@@ -177,10 +180,33 @@ def main():
     tweets = generate_post(post_type, context)
     print(f"[generate] Got {len(tweets)} tweets")
 
+    # Editorial jury — score against rubric before shipping
+    from engine.editorial_jury import judge, format_verdict_card
+    JURY_PATH = Path(__file__).parent.parent / "prompts" / "jury_fr_post.txt"
+    verdict = judge(
+        JURY_PATH,
+        post_type=post_type,
+        post_type_description=POST_TYPE_LABELS.get(post_type, post_type),
+        context=context,
+        generated_content="\n\n---\n\n".join(tweets),
+    )
+    print(f"[generate] Jury: {verdict.get('verdict')} ({verdict.get('verdict_reason','')[:120]})")
+
+    if verdict.get("verdict") == "REJECT":
+        send_telegram(
+            f"🔴 F&R jury REJECTED today's {POST_TYPE_LABELS.get(post_type, post_type)}\n"
+            f"Reason: {verdict.get('verdict_reason','')}\n"
+            f"Violations: {'; '.join(verdict.get('violations', [])[:5])}\n\n"
+            f"Re-run the workflow manually if you want a fresh take."
+        )
+        print(f"[generate] Jury REJECT — violations: {verdict.get('violations')}")
+        sys.exit(0)
+
     # Save for logging when user confirms YES
     _save_last_post(tweets, post_type)
 
-    ok = send_thread_as_messages(tweets, post_type)
+    jury_card = format_verdict_card(verdict)
+    ok = send_thread_as_messages(tweets, post_type, jury_card=jury_card)
     if ok:
         print(f"[generate] Sent {len(tweets)} messages to Telegram.")
     else:

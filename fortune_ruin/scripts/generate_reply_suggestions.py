@@ -303,12 +303,15 @@ def send_telegram(text: str):
         timeout=15,
     )
 
-def send_suggestion(post: dict, reply: str, style_name: str, index: int, total: int):
-    send_telegram(
+def send_suggestion(post: dict, reply: str, style_name: str, index: int, total: int, jury_card: str = ""):
+    ctx = (
         f"💬 {index}/{total} — @{post['author']} · {style_name}\n"
         f"\"{post['text'][:250]}\"\n"
         f"{post['url']}"
     )
+    if jury_card:
+        ctx += f"\n\n{jury_card}"
+    send_telegram(ctx)
     send_telegram(reply)
 
 
@@ -369,19 +372,46 @@ def main():
         f"{uae.strftime('%d %b')} · {len(selected)} replies, mixed styles"
     )
 
+    # Editorial jury setup
+    from engine.editorial_jury import judge, format_verdict_card
+    JURY_PATH = Path(__file__).parent.parent / "prompts" / "jury_fr_reply.txt"
+
     new_author_picks = []
+    rejected = 0
     for i, (post, style) in enumerate(zip(selected, styles), 1):
         print(f"[replies] {i}/{len(selected)} @{post['author']} · {style['name']}")
         try:
             reply = generate_reply(post["text"], post["author"], style)
-            send_suggestion(post, reply, style["name"], i, len(selected))
+        except Exception as e:
+            print(f"[replies] Generation error: {e}")
+            continue
+
+        # Editorial jury
+        verdict = judge(
+            JURY_PATH,
+            tweet_author=post.get("author", ""),
+            tweet_url=post.get("url", ""),
+            tweet_text=post.get("text", ""),
+            style_name=style.get("name", ""),
+            generated_content=reply,
+        )
+        print(f"  Jury: {verdict.get('verdict')} ({verdict.get('verdict_reason','')[:100]})")
+
+        if verdict.get("verdict") == "REJECT":
+            rejected += 1
+            print(f"  ⊘ Jury REJECT — violations: {verdict.get('violations')}")
+            continue
+
+        try:
+            send_suggestion(post, reply, style["name"], i, len(selected),
+                            jury_card=format_verdict_card(verdict))
             new_author_picks.append(post["author"])
         except Exception as e:
-            print(f"[replies] Error: {e}")
+            print(f"[replies] Send error: {e}")
             continue
 
     save_recent_authors(recent, new_author_picks)
-    print(f"[replies] Done. Sent {len(new_author_picks)} suggestions.")
+    print(f"[replies] Done. Sent {len(new_author_picks)} suggestions, {rejected} rejected by jury.")
 
 
 if __name__ == "__main__":
