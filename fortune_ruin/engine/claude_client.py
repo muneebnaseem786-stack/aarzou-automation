@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # Load .env from the fortune_ruin root folder
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-from llm import call_llm, parse_json_response  # noqa: E402
+from .llm import call_llm, parse_json_response  # noqa: E402
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
