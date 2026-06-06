@@ -298,14 +298,9 @@ Note the shape: it leads with a specific year or actor, drops one concrete detai
 - Forced MENA/UAE/Gulf/Pakistan angle unless the OP is directly about that region
 - Ending with a question to the OP ("what do you think?", "right?", "no?")
 
-# BEFORE WRITING, INTERNALLY CHECK
-- What specific year / actor / amount am I anchoring on?
-- Does it engage @{author}'s specific claim or am I pivoting?
-- Is it under 240 chars including spaces?
-
 # OUTPUT
-Return ONLY the reply text. No quotes around it. No preamble. No style label. No explanation."""
-    return call_claude(prompt, max_tokens=300).strip().strip('"')
+Return ONLY the reply text. No quotes around it. No preamble. No style label. No explanation. No thinking out loud. Just the reply text directly."""
+    return call_claude(prompt, max_tokens=1500).strip().strip('"')
 
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
