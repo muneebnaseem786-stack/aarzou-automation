@@ -265,30 +265,47 @@ def fetch_recent_posts(username: str) -> list[dict]:
 
 def generate_reply(original_post: str, author: str, style: dict) -> str:
     from engine.claude_client import call_claude
-    prompt = f"""You write replies for @FortuneAndRuin on X — a forensic financial history account building from zero followers. These replies go on posts from established finance accounts.
+    prompt = f"""You write replies for @FortuneAndRuin on X, a forensic financial history account building from zero followers. These replies go on posts from established finance accounts.
 
-ORIGINAL POST by @{author}:
+# ORIGINAL POST by @{author}
 "{original_post}"
 
-REPLY STYLE: {style['name']}
+# MANDATORY (the jury auto-rejects if any of these fail)
+1. HISTORICAL ANCHOR: the reply MUST name a specific year, person, institution, or dollar amount from real financial history. No anchor = reject. "Recently", "decades ago", "a major bank" do not count. "1873 / Jay Cooke / NYSE shut for ten days" counts.
+2. DO NOT PARAPHRASE the original post. Add something the OP did not say. Restating their claim with different words = reject.
+3. ENGAGE the OP's specific claim. Pivoting to an unrelated F&R story = reject.
+4. UNDER 240 characters total.
+
+# REPLY STYLE — {style['name']}
 {style['instructions']}
 
-EXAMPLE of this style (for tone reference, NOT to copy):
+# STRUCTURAL TARGET — your reply should match the SHAPE of this example
 "{style['example']}"
 
-HARD RULES (apply to every reply, regardless of style):
-- Under 240 characters
-- Sounds like a person, not a brand. No "as a financial history account..."
-- No em-dashes — use periods
-- No negative constructions ("it wasn't X, it was Y")
-- No emojis
-- No hashtags
-- Does not start with "I", "We", "Great point", "Actually", "This"
-- Does not ask the original poster a direct question ("what do you think?")
-- Specific over vague — real numbers, real names, real years
+Note the shape: it leads with a specific year or actor, drops one concrete detail, lands flat. Mirror that structure with a different historical fact relevant to the OP's claim.
 
-Return ONLY the reply text. No quotes, no preamble, no style label."""
-    return call_claude(prompt, max_tokens=200).strip().strip('"')
+# BANNED OPENERS (jury rejects on any of these)
+"I ", "We ", "Great point", "Actually", "This", "Hot take:", "Interesting", "Love this", "100%", "So ", "Honestly", "Look,", "Real talk", "Wild", "Folks"
+
+# BANNED LANGUAGE
+- em-dashes ("—" or "–" or "--")
+- emojis
+- hashtags
+- hedging words: "arguably", "perhaps", "in some ways", "it could be argued"
+- negation framing: "it's not X, it's Y" — lead affirmative instead
+- LLM tells: "delve", "tapestry", "navigate", "embark", "in the realm of", "unleash", "underscore", "speaks to", "speak volumes", "moment of", "the truth is"
+- Brand voice break: "as a financial history account", "we cover", "our research"
+- Forced MENA/UAE/Gulf/Pakistan angle unless the OP is directly about that region
+- Ending with a question to the OP ("what do you think?", "right?", "no?")
+
+# BEFORE WRITING, INTERNALLY CHECK
+- What specific year / actor / amount am I anchoring on?
+- Does it engage @{author}'s specific claim or am I pivoting?
+- Is it under 240 chars including spaces?
+
+# OUTPUT
+Return ONLY the reply text. No quotes around it. No preamble. No style label. No explanation."""
+    return call_claude(prompt, max_tokens=300).strip().strip('"')
 
 
 # ── Telegram ──────────────────────────────────────────────────────────────────
