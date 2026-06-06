@@ -403,6 +403,9 @@ def main():
             print(f"[replies] Generation error: {e}")
             continue
 
+        print(f"  OP: {post['text'][:140]!r}")
+        print(f"  Reply: {reply!r}")
+
         # Editorial jury
         verdict = judge(
             JURY_PATH,
