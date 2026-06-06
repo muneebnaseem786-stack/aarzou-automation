@@ -229,6 +229,45 @@ def save_recent_authors(recent: dict[str, str], new_authors: list[str]):
 
 # ── Nitter: fetch a user's recent posts ───────────────────────────────────────
 
+# Skip tweets that aren't analytical posts — testimonials, thank-yous,
+# announcements, retweets of personal congratulations. F&R has nothing
+# historical to add to "grateful for subscriber feedback 🙏".
+_NON_ANALYTICAL_OPENERS = re.compile(
+    r"^(grateful|thank(s|ful)?|honored|honoured|congrat|shoutout|shout out|"
+    r"happy to (announce|share)|proud to|excited to (announce|share)|"
+    r"just shipped|launching|introducing|today we|today i|so honored|"
+    r"big news|wow,?|wow!|amazing,?|lfg|let'?s go|🙏|much love|"
+    r"thrilled to|delighted to|thank you to|appreciate )",
+    re.IGNORECASE,
+)
+# Strong testimonial markers anywhere in first 120 chars
+_TESTIMONIAL_MARKERS = re.compile(
+    r"(🙏|❤️|grateful for|so grateful|adding value|adding so much value|"
+    r"thank.{0,15}for the kind words|honored to|congratulations to|"
+    r"happy birthday|happy anniversary)",
+    re.IGNORECASE,
+)
+
+
+def _has_analytical_claim(text: str) -> bool:
+    """Cheap pre-filter: does the post look like it has something analytical to
+    engage with? Drops testimonials, thank-yous, personal announcements, pure
+    promo tweets. Returns False = skip this post (no F&R reply will land)."""
+    t = text.strip()
+    if not t:
+        return False
+    head = t[:120]
+    if _NON_ANALYTICAL_OPENERS.match(t):
+        return False
+    if _TESTIMONIAL_MARKERS.search(head):
+        return False
+    # Pure link share with almost no commentary
+    words_excl_urls = re.sub(r"https?://\S+", "", t).split()
+    if len(words_excl_urls) < 8:
+        return False
+    return True
+
+
 def fetch_recent_posts(username: str) -> list[dict]:
     for instance in NITTER_INSTANCES:
         try:
@@ -248,6 +287,8 @@ def fetch_recent_posts(username: str) -> list[dict]:
                 text = re.sub(r"<[^>]+>", "", desc).strip() or title
                 x_link = link.replace(f"https://{instance}/", "https://x.com/")
                 if len(text) < MIN_POST_CHARS or "RT by" in title:
+                    continue
+                if not _has_analytical_claim(text):
                     continue
                 posts.append({
                     "text": text[:300],
@@ -270,10 +311,31 @@ def generate_reply(original_post: str, author: str, style: dict) -> str:
 # ORIGINAL POST by @{author}
 "{original_post}"
 
-# MANDATORY (the jury auto-rejects if any of these fail)
-1. HISTORICAL ANCHOR: the reply MUST name a specific year, person, institution, or dollar amount from real financial history. No anchor = reject. "Recently", "decades ago", "a major bank" do not count. "1873 / Jay Cooke / NYSE shut for ten days" counts.
-2. DO NOT PARAPHRASE the original post. Add something the OP did not say. Restating their claim with different words = reject.
-3. ENGAGE the OP's specific claim. Pivoting to an unrelated F&R story = reject.
+# STEP 1 — IS THERE AN ANALYTICAL CLAIM TO ENGAGE?
+First, identify @{author}'s specific analytical claim in one sentence.
+If the post has NO analyzable claim (it's a thank-you, testimonial, personal announcement, retweet of a compliment, inspirational quote, or pure promo), STOP and output exactly this single line:
+SKIP: <one sentence why there is no claim>
+
+If there IS a claim (an argument, prediction, data point with implication, framing of a market event, critique), continue.
+
+# STEP 2 — KEYWORD PIVOT TEST (REJECT YOUR OWN DRAFT)
+Before you write, draft a candidate reply. Then ask: does my historical anchor address @{author}'s SPECIFIC CLAIM, or did I just match on a keyword?
+
+BAD example (keyword pivot):
+  OP: "Mortgage affordability under pressure, median P&I now $2,128/month"
+  Bad reply: "1907: J.P. Morgan demanded a $100M fee to stabilize markets."
+  Why bad: the OP isn't about fees, panics, or 1907. The reply just keyword-matched on "pressure" or "money" and went tangential.
+
+GOOD example (engages the claim):
+  Same OP. Good reply: "1981 Volcker peak put 30-yr mortgages at 18.45%. Median payment swallowed half of pre-tax income. Today's 7% looks tame in nominal terms only."
+  Why good: it directly addresses mortgage affordability with a specific historical comparison.
+
+If your draft fails this test, rewrite it. If you can't make it engage the actual claim, output SKIP.
+
+# MANDATORY (jury auto-rejects if any fail)
+1. HISTORICAL ANCHOR: the reply MUST name a specific year, person, institution, or dollar amount from real financial history. "Recently", "decades ago", "a major bank" do not count.
+2. DO NOT PARAPHRASE the original post. Add something the OP did not say.
+3. ENGAGE the OP's specific claim, not a keyword. (See STEP 2.)
 4. UNDER 240 characters total.
 
 # REPLY STYLE — {style['name']}
@@ -299,7 +361,11 @@ Note the shape: it leads with a specific year or actor, drops one concrete detai
 - Ending with a question to the OP ("what do you think?", "right?", "no?")
 
 # OUTPUT
-Return ONLY the reply text. No quotes around it. No preamble. No style label. No explanation. No thinking out loud. Just the reply text directly."""
+Return ONLY one of these two:
+- The reply text (no quotes, no preamble, no style label, no explanation)
+- The single line "SKIP: <one sentence why>" if STEP 1 or STEP 2 fails
+
+Nothing else. No thinking out loud, no scratchpad."""
     return call_claude(prompt, max_tokens=1500).strip().strip('"')
 
 
@@ -400,6 +466,12 @@ def main():
 
         print(f"  OP: {post['text'][:140]!r}")
         print(f"  Reply: {reply!r}")
+
+        # Model self-skipped — no analytical claim or couldn't engage it.
+        if reply.upper().startswith("SKIP:"):
+            rejected += 1
+            print(f"  ⊘ Model SKIP — {reply[5:].strip()[:140]}")
+            continue
 
         # Editorial jury
         verdict = judge(
