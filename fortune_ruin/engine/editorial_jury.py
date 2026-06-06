@@ -27,7 +27,18 @@ import requests
 
 
 def _call_groq_strict(prompt: str, max_tokens: int = 1024) -> str:
-    """Call Groq Llama 3.3 70B in JSON mode for judgment tasks."""
+    """Call Groq Llama 3.1 8B Instant in JSON mode for judgment tasks.
+
+    Why 8B-instant for jury (not 70B):
+    - Per-model quotas on Groq free tier (verified). 8B-instant has its own
+      30 RPM / 6K TPM / 14.4K RPD pool, separate from gpt-oss-120b (generator)
+      and llama-3.3-70b-versatile. The 70B jury was 429ing constantly because
+      gpt-oss generation burst-consumed shared TPM, causing silent fail-open.
+    - 14.4K RPD vs 1K RPD on 70B = 14x more daily headroom.
+    - Judgment = rubric scoring + JSON emission, not creative writing. 8B
+      handles structured classification cleanly.
+    - Sub-second response times keep wall clock low.
+    """
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         raise EnvironmentError("GROQ_API_KEY not set — jury cannot run.")
@@ -38,7 +49,7 @@ def _call_groq_strict(prompt: str, max_tokens: int = 1024) -> str:
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
-                    "model": "llama-3.3-70b-versatile",
+                    "model": "llama-3.1-8b-instant",
                     "messages": [{"role": "user", "content": prompt}],
                     "max_tokens": max_tokens,
                     "temperature": 0.2,
