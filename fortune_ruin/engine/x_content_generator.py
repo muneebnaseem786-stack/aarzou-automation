@@ -40,7 +40,8 @@ def generate_x_post(post_type: str, context: str) -> dict:
         approved_hook=approved_hook,
         covered_topics=covered_str,
     )
-    result = call_claude_json(prompt, max_tokens=2000)
+    # 4000 tokens: gpt-oss-120b reasoning + 7-tweet thread output. 2000 was tight.
+    result = call_claude_json(prompt, max_tokens=4000)
 
     if "tweets" not in result:
         raise ValueError(f"Missing 'tweets' key in response: {result.keys()}")

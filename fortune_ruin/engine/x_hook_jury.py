@@ -22,7 +22,9 @@ def generate_x_hooks(post_type: str, context: str) -> list[str]:
     """Generate 3 hook options using the x_hook_prompt."""
     template = load_prompt("x_hook_prompt")
     prompt = template.format(post_type=post_type, context=context)
-    result = call_claude_json(prompt, max_tokens=800)
+    # 2500 tokens: gpt-oss-120b is a reasoning model, CoT consumes the budget
+    # before content. 800 (old) was empty-content prone.
+    result = call_claude_json(prompt, max_tokens=2500)
     if isinstance(result, list):
         return [str(h) for h in result[:3]]
     raise ValueError(f"Hook prompt returned unexpected format: {type(result)}")
@@ -34,7 +36,7 @@ def _run_juror(juror_name: str, hooks: list[str], post_type: str, context: str) 
     hooks_block = "\n\n".join(f"Hook {i+1}: {h}" for i, h in enumerate(hooks))
     prompt = template.format(post_type=post_type, context=context, hooks=hooks_block)
     try:
-        return call_claude_json(prompt, max_tokens=600)
+        return call_claude_json(prompt, max_tokens=2000)
     except Exception as e:
         # Return neutral scores on failure so the pipeline doesn't break
         return {"scores": [5, 5, 5], "best_index": 0, "improved_hook": hooks[0]}
