@@ -52,7 +52,7 @@ def get_sales_last_7_days() -> dict:
     from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces, SellingApiException
     sales = {asin: 0 for asin in ASINS}
-    created_after = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    created_after = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         api = OrdersV0(credentials=get_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(

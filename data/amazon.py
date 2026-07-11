@@ -106,7 +106,7 @@ def get_sales_7d() -> dict:
     from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces
     sales = {asin: 0 for asin in PRODUCTS}
-    created_after = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    created_after = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         api = OrdersV0(credentials=_get_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(

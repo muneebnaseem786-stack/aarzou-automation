@@ -74,7 +74,7 @@ def fetch_amazon_orders(days: int = 30) -> pd.DataFrame:
     from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces
     rows = []
-    created_after = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    created_after = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         api = OrdersV0(credentials=get_amazon_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(
