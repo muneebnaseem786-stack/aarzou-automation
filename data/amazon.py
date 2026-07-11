@@ -76,19 +76,20 @@ def get_inventory() -> dict:
     if not is_live():
         return dict(_MOCK_INVENTORY)
 
-    from sp_api.api import FbaInventory
+    from sp_api.api import Inventories
     from sp_api.base import Marketplaces
     results = {}
     try:
-        api = FbaInventory(credentials=_get_credentials(), marketplace=Marketplaces.AE)
-        response = api.get_inventory_summaries(
+        api = Inventories(credentials=_get_credentials(), marketplace=Marketplaces.AE)
+        response = api.get_inventory_summary_marketplace(
             details=True,
             granularityType="Marketplace",
             granularityId=MARKETPLACE_ID,
-            asins=list(PRODUCTS.keys()),
         )
         for item in response.payload.get("inventorySummaries", []):
             asin = item.get("asin")
+            if asin not in PRODUCTS:
+                continue
             qty = item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
             results[asin] = qty
     except Exception as e:
@@ -102,12 +103,12 @@ def get_sales_7d() -> dict:
     if not is_live():
         return dict(_MOCK_SALES_7D)
 
-    from sp_api.api import Orders
+    from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces
     sales = {asin: 0 for asin in PRODUCTS}
     created_after = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     try:
-        api = Orders(credentials=_get_credentials(), marketplace=Marketplaces.AE)
+        api = OrdersV0(credentials=_get_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(
             MarketplaceIds=[MARKETPLACE_ID],
             CreatedAfter=created_after,

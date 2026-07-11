@@ -43,19 +43,20 @@ def get_amazon_credentials():
 
 def fetch_amazon_inventory() -> pd.DataFrame:
     """Returns DataFrame: product, asin, units_available"""
-    from sp_api.api import FbaInventory
+    from sp_api.api import Inventories
     from sp_api.base import Marketplaces
     rows = []
     try:
-        api = FbaInventory(credentials=get_amazon_credentials(), marketplace=Marketplaces.AE)
-        response = api.get_inventory_summaries(
+        api = Inventories(credentials=get_amazon_credentials(), marketplace=Marketplaces.AE)
+        response = api.get_inventory_summary_marketplace(
             details=True,
             granularityType="Marketplace",
             granularityId=MARKETPLACE_ID,
-            asins=list(ASINS.keys()),
         )
         for item in response.payload.get("inventorySummaries", []):
             asin = item.get("asin")
+            if asin not in ASINS:
+                continue
             rows.append({
                 "product":         ASINS.get(asin, asin),
                 "asin":            asin,
@@ -70,12 +71,12 @@ def fetch_amazon_inventory() -> pd.DataFrame:
 
 def fetch_amazon_orders(days: int = 30) -> pd.DataFrame:
     """Returns DataFrame: date, asin, product, units, revenue_aed"""
-    from sp_api.api import Orders
+    from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces
     rows = []
     created_after = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     try:
-        api = Orders(credentials=get_amazon_credentials(), marketplace=Marketplaces.AE)
+        api = OrdersV0(credentials=get_amazon_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(
             MarketplaceIds=[MARKETPLACE_ID],
             CreatedAfter=created_after,

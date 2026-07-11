@@ -28,33 +28,33 @@ def get_credentials():
 
 
 def get_inventory() -> dict:
-    from sp_api.api import FbaInventory
+    from sp_api.api import Inventories
     from sp_api.base import Marketplaces, SellingApiException
     results = {}
     try:
-        api = FbaInventory(credentials=get_credentials(), marketplace=Marketplaces.AE)
-        response = api.get_inventory_summaries(
+        api = Inventories(credentials=get_credentials(), marketplace=Marketplaces.AE)
+        response = api.get_inventory_summary_marketplace(
             details=True,
             granularityType="Marketplace",
             granularityId=MARKETPLACE_ID,
-            asins=list(ASINS.keys()),
         )
         for item in response.payload.get("inventorySummaries", []):
             asin = item.get("asin")
-            qty = item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
-            results[asin] = qty
+            if asin in ASINS:
+                qty = item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
+                results[asin] = qty
     except Exception as e:
         print(f"Inventory API error: {e}")
     return results
 
 
 def get_sales_last_7_days() -> dict:
-    from sp_api.api import Orders
+    from sp_api.api import OrdersV0
     from sp_api.base import Marketplaces, SellingApiException
     sales = {asin: 0 for asin in ASINS}
     created_after = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
     try:
-        api = Orders(credentials=get_credentials(), marketplace=Marketplaces.AE)
+        api = OrdersV0(credentials=get_credentials(), marketplace=Marketplaces.AE)
         response = api.get_orders(
             MarketplaceIds=[MARKETPLACE_ID],
             CreatedAfter=created_after,
