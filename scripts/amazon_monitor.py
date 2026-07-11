@@ -42,7 +42,9 @@ def get_inventory() -> dict:
             asin = item.get("asin")
             if asin in ASINS:
                 qty = item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
-                results[asin] = qty
+                print(f"DEBUG summary: asin={asin} sellerSku={item.get('sellerSku')} "
+                      f"fnSku={item.get('fnSku')} condition={item.get('condition')} fulfillableQuantity={qty}")
+                results[asin] = results.get(asin, 0) + qty
     except Exception as e:
         print(f"Inventory API error: {e}")
     return results

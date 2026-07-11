@@ -91,7 +91,7 @@ def get_inventory() -> dict:
             if asin not in PRODUCTS:
                 continue
             qty = item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
-            results[asin] = qty
+            results[asin] = results.get(asin, 0) + qty
     except Exception as e:
         print(f"[amazon] Inventory API error: {e} — falling back to mock")
         return dict(_MOCK_INVENTORY)

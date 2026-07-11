@@ -53,15 +53,20 @@ def fetch_amazon_inventory() -> pd.DataFrame:
             granularityType="Marketplace",
             granularityId=MARKETPLACE_ID,
         )
+        agg = {}
         for item in response.payload.get("inventorySummaries", []):
             asin = item.get("asin")
             if asin not in ASINS:
                 continue
+            entry = agg.setdefault(asin, {"units_available": 0, "inbound_units": 0})
+            entry["units_available"] += item.get("inventoryDetails", {}).get("fulfillableQuantity", 0)
+            entry["inbound_units"] += item.get("inventoryDetails", {}).get("inboundWorkingQuantity", 0)
+        for asin, entry in agg.items():
             rows.append({
                 "product":         ASINS.get(asin, asin),
                 "asin":            asin,
-                "units_available": item.get("inventoryDetails", {}).get("fulfillableQuantity", 0),
-                "inbound_units":   item.get("inventoryDetails", {}).get("inboundWorkingQuantity", 0),
+                "units_available": entry["units_available"],
+                "inbound_units":   entry["inbound_units"],
                 "platform":        "Amazon",
             })
     except Exception as e:
