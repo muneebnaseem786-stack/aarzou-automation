@@ -147,6 +147,8 @@ def main():
 
     inventory = get_inventory()
     sales = get_sales_last_7_days()
+    print(f"Raw inventory: {inventory}")
+    print(f"Raw sales (7d): {sales}")
     html_body, alerts = build_report(inventory, sales)
 
     subject = "AARZOU ALERT — Action Required" if alerts else "AARZOU Daily Monitor — All Good"
