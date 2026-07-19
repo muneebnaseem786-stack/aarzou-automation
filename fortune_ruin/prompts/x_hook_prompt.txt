@@ -14,7 +14,7 @@ WHAT A GREAT X HOOK DOES:
 
 HOOK FORMULAS (pick the one that fits the topic best — do not combine):
 A. THE PARADOX: Two facts that contradict. Tension between them is the hook.
-   "In 1720, Isaac Newton lost everything in the stock market. He had already calculated the exact moment of collapse and done nothing."
+   "In 1720, Isaac Newton lost everything in the stock market. He had calculated the collapse to the day and done nothing."
 B. THE SPECIFIC NUMBER THAT SHOCKS: Lead with a number so precise it demands explanation.
    "In 1923, a loaf of bread in Germany cost 200 billion marks. Six months earlier it cost one."
 C. THE DIRECT IMPLICATION: Open with a statement that puts the reader inside the story.
@@ -26,10 +26,20 @@ E. THE REVERSAL: The outcome everyone expects, inverted.
 
 STYLE RULES (non-negotiable):
 - No em-dashes. Use a period to break thoughts.
-- No negative constructions ("it was not X but Y"). State the positive directly.
-- No hedging ("arguably", "perhaps", "in some ways")
 - No setup phrases ("Today I want to talk about", "Here's a story about")
 - Specific over general always. "$2.3 billion" beats "billions of dollars"
+
+BANNED LLM SIGNATURES (regenerate if any appear):
+1. Negation framing: "not X, it is Y" / "it was not X but Y" → lead affirmative
+2. Decorative tricolons (three-item parallel filler) → use one, two, or four
+3. Stacked abstract nouns ("activation layer," "decisioning infrastructure") → use verbs
+4. Meta-narration ("What I find interesting...") → state the claim
+5. "The moment of X" / "Y of Z" gravitas phrasing → use specifics ("calculated the collapse to the day" not "calculated the exact moment of collapse")
+6. Closing aphorism (vague, profound, commits to nothing) — soft ban for hooks
+7. "It is X. It is Y." stacked declaratives without earned weight — soft ban
+8. Hedge sandwich / "arguably," "perhaps," "in some ways" → commit or cut
+
+Principle: Lead affirmative. Use verbs, not nominalizations. Trust the reader.
 
 Generate exactly 3 hook options. Each uses a different formula. Each stands alone as tweet 1 of a thread.
 

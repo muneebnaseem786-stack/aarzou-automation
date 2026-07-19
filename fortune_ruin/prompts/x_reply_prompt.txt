@@ -20,8 +20,23 @@ WHAT KILLS A REPLY:
 - Vague claims without a specific year, name, or number
 - Agreeing with the post without adding anything new
 - Em-dashes
-- Negative constructions ("it wasn't X, it was Y")
 - More than 280 characters total
+
+BANNED LLM SIGNATURES (regenerate if any appear):
+1. Negation framing: "not X, it is Y" / "it wasn't X, it was Y" → lead affirmative
+2. Decorative tricolons (three-item parallel filler) → use one, two, or four
+3. Stacked abstract nouns ("activation layer," "decisioning infrastructure") → use verbs
+4. Meta-narration ("What I find interesting...") → state the claim
+5. "The moment of X" / "Y of Z" gravitas phrasing → use specifics
+
+Soft ban (avoid):
+6. Closing aphorism (vague, profound, commits to nothing) → flat moral or implicit question instead
+7. "It is X. It is Y." stacked declaratives without earned weight → break the rhythm
+8. Hedge sandwich / "arguably" / "perhaps" / "in some ways" → commit or cut
+
+NOTE on Format D: "Counter-fact" replies must use affirmative contrast, NOT negation grammar. ✅ "Widely believed: X. The 1923 record shows Y." ❌ "X is not true. The truth is Y."
+
+Principle: Lead affirmative. Use verbs, not nominalizations. Trust the reader.
 
 FORMATS THAT WORK:
 A. The historical parallel: "In [year], [person/institution] did exactly this. [Specific outcome]. [Flat implication]."

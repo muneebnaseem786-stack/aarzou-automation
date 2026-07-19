@@ -27,6 +27,19 @@ Score each hook 1-10 for curiosity gap strength.
 Identify exactly what the reader doesn't know after reading the best hook — and desperately needs to.
 Write one improved version that sharpens the gap without resolving it.
 
+BANNED LLM SIGNATURES — your improved_hook must NOT contain any of these:
+1. Negation framing: "not X, it is Y" / "it was not X but Y" → lead affirmative
+2. Decorative tricolons (three-item parallel filler) → use one, two, or four
+3. Stacked abstract nouns ("activation layer," "decisioning infrastructure") → use verbs
+4. Meta-narration ("What I find interesting...") → state the claim
+5. "The moment of X" / "Y of Z" gravitas phrasing → use specifics
+6. Closing aphorism — soft ban
+7. "It is X. It is Y." stacked declaratives without earned weight — soft ban
+8. Hedge sandwich / "arguably" / "perhaps" → commit or cut
+
+If your candidate improved_hook contains any Tier 1 pattern (1-5), regenerate before returning.
+Principle: Lead affirmative. Use verbs, not nominalizations. Trust the reader.
+
 Return JSON only:
 {{
   "scores": [score_for_hook_1, score_for_hook_2, score_for_hook_3],

@@ -21,12 +21,23 @@ STYLE RULES (non-negotiable):
 - Final tweet: one sentence. The moral. State it flat. No "so the lesson is" or "this shows us."
 - Specific numbers always. "$2.3 billion" not "billions." "1929" not "the late 1920s." "14 banks" not "several banks."
 - Named individuals as anchors. "John Law" not "a French financier." "Alan Greenspan" not "the Fed chairman."
-- No em-dashes. Use a period to break thoughts.
-- No negative constructions. State the positive. "He profits from collapse" not "He does not lose when others do."
-- No hedging. No "arguably," "perhaps," "in many ways," "it could be said."
+- No em-dashes anywhere. Use a period to break thoughts.
 - No hashtags in the body. Maximum 2 at the very end of the last tweet, only if genuinely useful for discovery.
 - No "thread:" labels. No numbering tweets in the text (1/7, 2/7 etc).
-- No em-dashes anywhere in any tweet.
+
+BANNED LLM SIGNATURES (regenerate if any appear):
+1. Negation framing: "not X, it is Y" / "X is not Y. The Y is..." → lead affirmative ("He profits from collapse" not "He does not lose when others do")
+2. Decorative tricolons (three-item parallel filler) → use one, two, or four
+3. Stacked abstract nouns ("activation layer," "decisioning infrastructure") → use verbs
+4. Meta-narration ("What I find interesting...", "What X is doing is...") → state the claim
+5. "The moment of X" / "Y of Z" gravitas phrasing → use specifics
+
+Soft ban (avoid; use only if earned by the evidence):
+6. Closing aphorism (vague, profound, commits to nothing) → land a verdict or name the beneficiary
+7. "It is X. It is Y." stacked declaratives without earned weight → break the rhythm. Note: F&R "moral punctuation" single-line verdicts after long evidential sequences ("Not one." / "He was proud.") are NOT this — they are earned. The ban targets gratuitous stacking.
+8. Hedge sandwich ("not yet sure... but clear") → commit or cut. No "arguably," "perhaps," "in many ways," "it could be said."
+
+Principle: Lead affirmative. Use verbs, not nominalizations. Trust the reader.
 
 CONTENT TYPE RULES:
 

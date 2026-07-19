@@ -230,36 +230,41 @@ def save_recent_authors(recent: dict[str, str], new_authors: list[str]):
 # ── Nitter: fetch a user's recent posts ───────────────────────────────────────
 
 # Skip tweets that aren't analytical posts — testimonials, thank-yous,
-# announcements, retweets of personal congratulations. F&R has nothing
-# historical to add to "grateful for subscriber feedback 🙏".
+# personal announcements. Conservative on openers: only HIGH-CONFIDENCE
+# testimonial patterns. Phrases like "today we", "big news", "introducing",
+# "wow", "so" are common analytical openers too and over-filtering them
+# blocks the whole pipeline. Tightened after Reply Radar pipeline ate 40min
+# wall clock + 0 replies due to over-filtering.
 _NON_ANALYTICAL_OPENERS = re.compile(
-    r"^(grateful|thank(s|ful)?|honored|honoured|congrat|shoutout|shout out|"
-    r"happy to (announce|share)|proud to|excited to (announce|share)|"
-    r"just shipped|launching|introducing|today we|today i|so honored|"
-    r"big news|wow,?|wow!|amazing,?|lfg|let'?s go|🙏|much love|"
-    r"thrilled to|delighted to|thank you to|appreciate )",
+    r"^(grateful|thank(s|ful)?\b|honou?red|congrat|shoutout|shout out|"
+    r"happy to (announce|share)|proud to (announce|share|partner)|"
+    r"excited to (announce|share|partner|launch)|"
+    r"just shipped|delighted to (announce|share)|thank you to|"
+    r"appreciate the|happy (birthday|anniversary)|"
+    r"🙏|much love)",
     re.IGNORECASE,
 )
-# Strong testimonial markers anywhere in first 120 chars
+# Unambiguous testimonial signals anywhere in first 120 chars
 _TESTIMONIAL_MARKERS = re.compile(
-    r"(🙏|❤️|grateful for|so grateful|adding value|adding so much value|"
-    r"thank.{0,15}for the kind words|honored to|congratulations to|"
-    r"happy birthday|happy anniversary)",
+    r"(🙏|grateful for|so grateful|adding value|adding so much value|"
+    r"thank.{0,15}for the kind words|congratulations to|"
+    r"happy birthday|happy anniversary|kind words)",
     re.IGNORECASE,
 )
 
 
 def _has_analytical_claim(text: str) -> bool:
     """Cheap pre-filter: does the post look like it has something analytical to
-    engage with? Drops testimonials, thank-yous, personal announcements, pure
-    promo tweets. Returns False = skip this post (no F&R reply will land)."""
-    t = text.strip()
+    engage with? Drops only HIGH-CONFIDENCE testimonials, thank-yous, and
+    personal-announcement posts. Conservative by design — better to let one
+    Puru-style testimonial through than to filter out genuine analytical
+    posts that happen to start with 'Today we...' or similar."""
+    t = (text or "").strip()
     if not t:
         return False
-    head = t[:120]
     if _NON_ANALYTICAL_OPENERS.match(t):
         return False
-    if _TESTIMONIAL_MARKERS.search(head):
+    if _TESTIMONIAL_MARKERS.search(t[:120]):
         return False
     # Pure link share with almost no commentary
     words_excl_urls = re.sub(r"https?://\S+", "", t).split()
