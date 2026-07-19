@@ -12,6 +12,8 @@ Available now (Amazon SP-API):
     aarzou inventory [--days N]   stock, velocity, days of cover, reorder alerts
     aarzou sales [--days N]       units, revenue, GP, prices actually transacted
     aarzou prices [ASIN ...]      competitor pricing + Featured Offer monitor
+    aarzou competitors            track named rival ASINs and their prices
+    aarzou reviews [ASIN ...]     review counts and ratings, with history
     aarzou noon                   Noon unit economics (API client pending)
 
 Planned once the Amazon Ads API is approved (applied 19 Jul 2026):
@@ -99,6 +101,34 @@ def build_parser():
     p.add_argument("asin", nargs="*", help="ASINs (default: all)")
     p.set_defaults(func=lambda a: __import__(
         "aarzou.prices", fromlist=["run"]).run(a))
+
+    p = sub.add_parser("reviews", help="review counts and ratings, with history")
+    p.add_argument("asin", nargs="*", help="ASINs (default: all)")
+    p.set_defaults(func=lambda a: __import__(
+        "aarzou.reviews", fromlist=["run"]).run(a))
+
+    p = sub.add_parser("competitors", help="track rival ASINs and their prices")
+    p.add_argument("--for", dest="for_asin", help="only rivals of this SKU")
+    csub = p.add_subparsers(dest="action")
+    p.set_defaults(func=lambda a: __import__(
+        "aarzou.competitors", fromlist=["cmd_check"]).cmd_check(a))
+
+    a = csub.add_parser("add", help="start tracking a competitor ASIN")
+    a.add_argument("asin")
+    a.add_argument("--for", dest="for_asin", help="which of our SKUs it rivals")
+    a.add_argument("--label", help="readable name")
+    a.set_defaults(func=lambda x: __import__(
+        "aarzou.competitors", fromlist=["cmd_add"]).cmd_add(x))
+
+    a = csub.add_parser("remove", help="stop tracking a competitor ASIN")
+    a.add_argument("asin")
+    a.set_defaults(func=lambda x: __import__(
+        "aarzou.competitors", fromlist=["cmd_remove"]).cmd_remove(x))
+
+    a = csub.add_parser("history", help="price history for one competitor")
+    a.add_argument("asin")
+    a.set_defaults(func=lambda x: __import__(
+        "aarzou.competitors", fromlist=["cmd_history"]).cmd_history(x))
 
     p = sub.add_parser("noon", help="Noon unit economics")
     p.set_defaults(func=commands.cmd_noon)
