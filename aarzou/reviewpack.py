@@ -25,19 +25,26 @@ def _section(title):
 
 
 def _run(fn, args, label):
-    """Run a command, capture its output, report failures without aborting."""
+    """
+    Run a command and capture its output.
+
+    Returns "ok", "alerts", or "failed". Commands return exit code 1 both for
+    genuine failures AND for successful runs that raised alerts (an out-of-stock
+    SKU, say). Only an exception counts as a failure - an alert means the check
+    worked and found something worth knowing.
+    """
     buf = io.StringIO()
     try:
         with redirect_stdout(buf):
             code = fn(args)
         print(buf.getvalue().rstrip())
-        return code
+        return "alerts" if code else "ok"
     except Exception as exc:  # noqa: BLE001
         out = buf.getvalue().rstrip()
         if out:
             print(out)
-        print(f"\n  [{label} failed: {type(exc).__name__}: {str(exc)[:120]}]")
-        return 1
+        print(f"\n  [{label} FAILED: {type(exc).__name__}: {str(exc)[:160]}]")
+        return "failed"
 
 
 class _Args:
@@ -61,34 +68,34 @@ def run(args):
     print(f"  Window: last {args.days} days | {len(PRODUCTS)} Amazon SKUs")
     print("=" * 92)
 
-    failures = []
+    failures, alerted = [], []
+
+    def record(name, status):
+        if status == "failed":
+            failures.append(name)
+        elif status == "alerts":
+            alerted.append(name)
 
     _section("1. UNIT ECONOMICS")
-    if _run(commands.cmd_econ, _Args(), "econ"):
-        failures.append("econ")
+    record("econ", _run(commands.cmd_econ, _Args(), "econ"))
 
     _section("2. INVENTORY AND VELOCITY")
-    if _run(commands.cmd_inventory, _Args(days=args.days), "inventory"):
-        failures.append("inventory")
+    record("inventory", _run(commands.cmd_inventory, _Args(days=args.days), "inventory"))
 
     _section("3. SALES")
-    if _run(commands.cmd_sales, _Args(days=args.days), "sales"):
-        failures.append("sales")
+    record("sales", _run(commands.cmd_sales, _Args(days=args.days), "sales"))
 
     _section("4. PRICING AND FEATURED OFFER")
-    if _run(prices_mod.run, _Args(), "prices"):
-        failures.append("prices")
+    record("prices", _run(prices_mod.run, _Args(), "prices"))
 
     if not args.quick:
         _section("5. REVIEWS")
         from . import reviews as reviews_mod
-        if _run(reviews_mod.run, _Args(), "reviews"):
-            failures.append("reviews")
+        record("reviews", _run(reviews_mod.run, _Args(), "reviews"))
 
         _section("6. COMPETITORS")
         from . import competitors as comp_mod
-        if _run(comp_mod.cmd_check, _Args(), "competitors"):
-            failures.append("competitors")
+        record("competitors", _run(comp_mod.cmd_check, _Args(), "competitors"))
     else:
         print("\n(skipped reviews and competitors: --quick)")
 
@@ -99,10 +106,13 @@ def run(args):
 
     print("\n" + "=" * 92)
     if failures:
-        print(f"  PACK COMPLETE WITH {len(failures)} FAILED SECTION(S): "
-              f"{', '.join(failures)}")
-        print("  Treat missing sections as unknown, not as zero.")
-    else:
-        print("  PACK COMPLETE - all sections succeeded.")
+        print(f"  {len(failures)} SECTION(S) FAILED: {', '.join(failures)}")
+        print("  Treat those as unknown, not as zero.")
+    if alerted:
+        print(f"  SECTIONS RAISING ALERTS: {', '.join(alerted)} - see above.")
+    if not failures and not alerted:
+        print("  PACK COMPLETE - all sections clean, no alerts.")
+    elif not failures:
+        print("  PACK COMPLETE - all sections ran.")
     print("=" * 92)
     return 1 if failures else 0
