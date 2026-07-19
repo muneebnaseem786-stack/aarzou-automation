@@ -30,6 +30,31 @@ EXPORTS = {
 }
 
 
+def _from_json_file():
+    """
+    Preferred source: the credentials JSON Noon issues on key creation.
+    Contains key_id, private_key (PEM), channel_identifier, project_code, type.
+
+    Path comes from NOON_CREDENTIALS_FILE, else noon_credentials.json at the
+    repo root. Returns (key_id, pem, meta) or (None, None, {}).
+    """
+    import json
+    name = os.environ.get("NOON_CREDENTIALS_FILE", "noon_credentials.json").strip()
+    p = pathlib.Path(name)
+    if not p.is_absolute():
+        p = pathlib.Path(__file__).resolve().parent.parent / p
+    if not p.exists():
+        return None, None, {}
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None, None, {}
+    key_id = d.get("key_id") or d.get("keyId")
+    pem = d.get("private_key") or d.get("privateKey")
+    meta = {k: d.get(k) for k in ("channel_identifier", "project_code", "type")}
+    return key_id, pem, meta
+
+
 def _secret_material():
     """
     Returns (secret_text, algorithm).
@@ -75,6 +100,9 @@ def credentials():
 
 
 def is_live():
+    kid, pem, _ = _from_json_file()
+    if kid and pem:
+        return True
     key_id, secret = credentials()
     return bool(key_id and secret)
 
@@ -97,8 +125,12 @@ def session():
     """
     import requests
 
-    key_id = os.environ.get("NOON_KEY_ID", "").strip()
-    secret, algorithm = _secret_material()
+    key_id, pem, meta = _from_json_file()
+    if key_id and pem:
+        secret, algorithm = pem, "RS256"
+    else:
+        key_id = os.environ.get("NOON_KEY_ID", "").strip()
+        secret, algorithm = _secret_material()
     if not (key_id and secret):
         raise RuntimeError(
             "Missing Noon credentials. Set NOON_KEY_ID and NOON_SECRET_FILE in .env."
