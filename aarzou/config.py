@@ -23,6 +23,10 @@ from pathlib import Path
 MARKETPLACE_ID = "A2VIGQ35RCS4UG"  # Amazon UAE
 REFERRAL_PCT = 0.15               # Amazon UAE, all categories we sell in
 
+# Our Amazon seller id, used to identify our own offer in the offers API.
+# Confirmed live 19 Jul 2026 (buy-box winner on B09M69G8X7 and B0C592JW6D).
+SELLER_ID = "A2L095EMVSFH7B"
+
 FEES_CACHE = Path(__file__).resolve().parent.parent / ".fees_cache.json"
 
 
@@ -105,8 +109,8 @@ PRODUCTS = {
         note="Kept 99.99 post-restock. Revert trigger: <0.7 units/day over 2 weeks.",
     ),
     "B0F8W72SYT": Product(
-        "B0F8W72SYT", "Lavalier Microphone", 69.99, cogs=40.00, fba_fee_est=6.26,
-        note="PPC paused. Branded relaunch ~23 Jul.",
+        "B0F8W72SYT", "Lavalier Microphone", 79.99, cogs=40.00, fba_fee_est=9.00,
+        note="PRICE IS 79.99 (confirmed by a live sale 19 Jul), NOT the 69.99 on file in the PPC notes. PPC paused, branded relaunch ~23 Jul.",
     ),
 }
 

@@ -7,6 +7,7 @@ number presented confidently is worse than no number.
 """
 
 import json
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -111,9 +112,21 @@ def cmd_fees(args):
     for asin in asins:
         p = PRODUCTS[asin]
         try:
-            resp = api.get_product_fees_estimate_for_asin(
-                asin, price=p.price, currency="AED", is_fba=True,
-            )
+            resp = None
+            last_exc = None
+            for attempt in range(4):
+                try:
+                    resp = api.get_product_fees_estimate_for_asin(
+                        asin, price=p.price, currency="AED", is_fba=True,
+                    )
+                    break
+                except Exception as e:  # noqa: BLE001
+                    last_exc = e
+                    if "Quota" not in str(e) and "429" not in str(e):
+                        raise
+                    time.sleep(2 ** attempt)  # 1s, 2s, 4s, 8s
+            if resp is None:
+                raise last_exc
             payload = resp.payload or {}
             result = payload.get("FeesEstimateResult", payload)
             estimate = result.get("FeesEstimate", {}) or {}
@@ -138,6 +151,7 @@ def cmd_fees(args):
                 entry["fba"] = round(fba, 2)
             cache[asin] = entry
 
+            time.sleep(1.2)
             print(f"{p.name[:29]:<30} {p.price:>7.2f} "
                   f"{(f'{referral:.2f}' if referral is not None else '-'):>9} "
                   f"{(f'{fba:.2f}' if fba is not None else '-'):>8} "
@@ -227,7 +241,7 @@ def _units_sold(days):
     except ImportError:
         return None
 
-    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     units = defaultdict(int)
     try:
         api = Orders(credentials=spapi.credentials(), marketplace=Marketplaces.AE)
@@ -261,7 +275,7 @@ def cmd_sales(args):
         print("python-amazon-sp-api not installed.")
         return 1
 
-    since = (datetime.now(timezone.utc) - timedelta(days=args.days)).isoformat()
+    since = (datetime.now(timezone.utc) - timedelta(days=args.days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     units = defaultdict(int)
     revenue = defaultdict(float)
     prices = defaultdict(set)
