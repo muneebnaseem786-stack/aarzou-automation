@@ -15,6 +15,7 @@ Available now (Amazon SP-API):
     aarzou competitors            track named rival ASINs and their prices
     aarzou reviews [ASIN ...]     review counts and ratings, with history
     aarzou noon                   Noon unit economics (API client pending)
+    aarzou review-pack            everything above, one consolidated report
 
 Planned once the Amazon Ads API is approved (applied 19 Jul 2026):
     aarzou ppc week               pull all campaign reports, run doctrine checks
@@ -129,6 +130,13 @@ def build_parser():
     a.add_argument("asin")
     a.set_defaults(func=lambda x: __import__(
         "aarzou.competitors", fromlist=["cmd_history"]).cmd_history(x))
+
+    p = sub.add_parser("review-pack", help="full weekly review, one report")
+    p.add_argument("--days", type=int, default=7, help="window (default 7)")
+    p.add_argument("--quick", action="store_true",
+                   help="skip reviews and competitors (no scraping)")
+    p.set_defaults(func=lambda a: __import__(
+        "aarzou.reviewpack", fromlist=["run"]).run(a))
 
     p = sub.add_parser("noon", help="Noon unit economics")
     p.set_defaults(func=commands.cmd_noon)
