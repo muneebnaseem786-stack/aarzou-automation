@@ -16,11 +16,13 @@ Every check appends to price history, so movements are visible over time.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import PRODUCTS
 from . import spapi
+from .reviews import _fetch as fetch_reviews, REVIEWS_FILE
 
 COMPETITORS_FILE = Path(__file__).resolve().parent.parent / "competitors.json"
 
@@ -122,6 +124,21 @@ def cmd_history(args):
     return 0
 
 
+def _our_reviews(asin):
+    """Latest known review count for one of our own ASINs, if recorded."""
+    if not REVIEWS_FILE.exists():
+        return None
+    try:
+        hist = json.loads(REVIEWS_FILE.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    rows = hist.get(asin) or []
+    for r in reversed(rows):
+        if r.get("count") is not None:
+            return r["count"]
+    return None
+
+
 def cmd_check(args):
     data = _load()
     tracked = data.get("competitors") or {}
@@ -154,44 +171,56 @@ def cmd_check(args):
         return 0
 
     failures = 0
-    for our_asin, rivals in groups.items():
+    for our_asin, rivals in sorted(groups.items(), key=lambda kv: str(kv[0])):
         ours = PRODUCTS.get(our_asin)
         if ours:
-            print(f"\n{ours.name} - our price AED {ours.price:.2f}")
+            ourrev = _our_reviews(our_asin)
+            rev_txt = f", {ourrev} reviews" if ourrev is not None else ""
+            print(f"\n{ours.name} - ours AED {ours.price:.2f}{rev_txt}")
         else:
             print("\nUnassigned competitors")
-        print(f"  {'COMPETITOR':<32} {'PRICE':>8} {'VS OURS':>9} {'OFFERS':>7}  MOVE")
-        print("  " + "-" * 74)
+        print(f"  {'COMPETITOR':<26} {'PRICE':>8} {'VS OURS':>8} {'REVIEWS':>8} "
+              f"{'RATING':>7} {'OFFERS':>7}  MOVE")
+        print("  " + "-" * 88)
 
         for asin, meta in sorted(rivals, key=lambda r: r[1].get("label", "")):
             price, buybox, offers, _t, err = _fetch(client, asin)
+            rcount, rrating, rerr = fetch_reviews(asin)
+            time.sleep(2.0)
+
             if err:
                 failures += 1
-                print(f"  {meta.get('label', asin)[:31]:<32} {'ERROR':>8}  {err[:34]}")
+                print(f"  {meta.get('label', asin)[:25]:<26} {'ERROR':>8}  {err[:40]}")
                 continue
 
             rows = history.setdefault(asin, [])
-            prev = next((r["price"] for r in reversed(rows) if r.get("price") is not None), None)
+            prev = next((r["price"] for r in reversed(rows)
+                         if r.get("price") is not None), None)
+            entry = {"date": today, "price": price, "buybox": buybox,
+                     "reviews": rcount, "rating": rrating}
             if not rows or rows[-1]["date"] != today:
-                rows.append({"date": today, "price": price, "buybox": buybox})
+                rows.append(entry)
             else:
-                rows[-1] = {"date": today, "price": price, "buybox": buybox}
+                rows[-1] = entry
 
             vs = "-"
             if price is not None and ours:
-                diff = (price / ours.price - 1) * 100
-                vs = f"{diff:+.0f}%"
+                vs = f"{(price / ours.price - 1) * 100:+.0f}%"
             move = "-"
             if price is not None and prev is not None:
                 d = price - prev
-                move = "unchanged" if abs(d) < 0.01 else f"{d:+.2f} since last check"
+                move = "unchanged" if abs(d) < 0.01 else f"{d:+.2f}"
 
-            print(f"  {meta.get('label', asin)[:31]:<32} "
+            print(f"  {meta.get('label', asin)[:25]:<26} "
                   f"{(f'{price:.2f}' if price is not None else '-'):>8} "
-                  f"{vs:>9} {(offers if offers is not None else '-'):>7}  {move}")
+                  f"{vs:>8} "
+                  f"{(rcount if rcount is not None else '-'):>8} "
+                  f"{(f'{rrating:.1f}' if rrating else '-'):>7} "
+                  f"{(offers if offers is not None else '-'):>7}  {move}")
 
     _save(data)
-    print(f"\nChecked {sum(len(v) for v in groups.values())} competitor(s). "
-          f"History saved to {COMPETITORS_FILE.name}.")
+    total = sum(len(v) for v in groups.values())
+    print(f"\nChecked {total} competitor(s). History saved to {COMPETITORS_FILE.name}.")
     print("VS OURS is the rival's price relative to our current list price.")
+    print("MOVE is the price change since the previous check.")
     return 1 if failures else 0

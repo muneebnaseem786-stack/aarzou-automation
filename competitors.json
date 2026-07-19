@@ -1,4 +1,244 @@
 {
-  "competitors": {},
-  "history": {}
+  "competitors": {
+    "B0922MLVZN": {
+      "label": "Broom rival 1",
+      "for": "B09M69G8X7",
+      "added": "2026-07-19"
+    },
+    "B0B4WB1ZLQ": {
+      "label": "Beige rival 1",
+      "for": "B0C592JW6D",
+      "added": "2026-07-19"
+    },
+    "B0D4FCN275": {
+      "label": "Beige rival 2",
+      "for": "B0C592JW6D",
+      "added": "2026-07-19"
+    },
+    "B0FJ8S8JFJ": {
+      "label": "Beige rival 3",
+      "for": "B0C592JW6D",
+      "added": "2026-07-19"
+    },
+    "B0B4W97C99": {
+      "label": "Grey rival 1",
+      "for": "B0C43HGC77",
+      "added": "2026-07-19"
+    },
+    "B0D9S4NPT1": {
+      "label": "Bidet rival 1",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0F8P27CHW": {
+      "label": "Bidet rival 2",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0F5SPXMYP": {
+      "label": "Bidet rival 3",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0GL2WTDW2": {
+      "label": "Bidet rival 4",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0FKZ12CW3": {
+      "label": "Bidet rival 5",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0CHX736CK": {
+      "label": "Bidet rival 6",
+      "for": "B0FBXBLF9Y",
+      "added": "2026-07-19"
+    },
+    "B0DPPJ7TFJ": {
+      "label": "Mic rival 1",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    },
+    "B0H32XFHQM": {
+      "label": "Mic rival 2",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    },
+    "B0DRN75CP1": {
+      "label": "Mic rival 3",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    },
+    "B0DXL34KD1": {
+      "label": "Mic rival 4",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    },
+    "B0FKFT53VL": {
+      "label": "Mic rival 5",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    },
+    "B0F3D55D5R": {
+      "label": "Mic rival 6",
+      "for": "B0F8W72SYT",
+      "added": "2026-07-19"
+    }
+  },
+  "history": {
+    "B0922MLVZN": [
+      {
+        "date": "2026-07-19",
+        "price": 39.99,
+        "buybox": 39.99,
+        "reviews": 400,
+        "rating": 4.2
+      }
+    ],
+    "B0B4W97C99": [
+      {
+        "date": "2026-07-19",
+        "price": 39.99,
+        "buybox": 39.99,
+        "reviews": 259,
+        "rating": 4.4
+      }
+    ],
+    "B0B4WB1ZLQ": [
+      {
+        "date": "2026-07-19",
+        "price": 51.0,
+        "buybox": 51.0,
+        "reviews": 259,
+        "rating": 4.4
+      }
+    ],
+    "B0D4FCN275": [
+      {
+        "date": "2026-07-19",
+        "price": 54.0,
+        "buybox": 54.0,
+        "reviews": 22,
+        "rating": 4.6
+      }
+    ],
+    "B0FJ8S8JFJ": [
+      {
+        "date": "2026-07-19",
+        "price": 39.0,
+        "buybox": 39.0,
+        "reviews": 14,
+        "rating": 4.7
+      }
+    ],
+    "B0DPPJ7TFJ": [
+      {
+        "date": "2026-07-19",
+        "price": 199.0,
+        "buybox": 199.0,
+        "reviews": 76,
+        "rating": 4.2
+      }
+    ],
+    "B0H32XFHQM": [
+      {
+        "date": "2026-07-19",
+        "price": 89.99,
+        "buybox": 89.99,
+        "reviews": 75,
+        "rating": 4.5
+      }
+    ],
+    "B0DRN75CP1": [
+      {
+        "date": "2026-07-19",
+        "price": 89.0,
+        "buybox": 89.0,
+        "reviews": 89,
+        "rating": 4.1
+      }
+    ],
+    "B0DXL34KD1": [
+      {
+        "date": "2026-07-19",
+        "price": 89.99,
+        "buybox": 89.99,
+        "reviews": 14,
+        "rating": 5.0
+      }
+    ],
+    "B0FKFT53VL": [
+      {
+        "date": "2026-07-19",
+        "price": 149.0,
+        "buybox": 149.0,
+        "reviews": 4,
+        "rating": 5.0
+      }
+    ],
+    "B0F3D55D5R": [
+      {
+        "date": "2026-07-19",
+        "price": 150.0,
+        "buybox": 150.0,
+        "reviews": 1557,
+        "rating": 4.6
+      }
+    ],
+    "B0D9S4NPT1": [
+      {
+        "date": "2026-07-19",
+        "price": 127.0,
+        "buybox": 127.0,
+        "reviews": 81,
+        "rating": 4.5
+      }
+    ],
+    "B0F8P27CHW": [
+      {
+        "date": "2026-07-19",
+        "price": 129.99,
+        "buybox": 129.99,
+        "reviews": 19,
+        "rating": 4.9
+      }
+    ],
+    "B0F5SPXMYP": [
+      {
+        "date": "2026-07-19",
+        "price": 90.07,
+        "buybox": 90.07,
+        "reviews": 33,
+        "rating": 4.5
+      }
+    ],
+    "B0GL2WTDW2": [
+      {
+        "date": "2026-07-19",
+        "price": 95.0,
+        "buybox": 95.0,
+        "reviews": 1,
+        "rating": 5.0
+      }
+    ],
+    "B0FKZ12CW3": [
+      {
+        "date": "2026-07-19",
+        "price": 99.99,
+        "buybox": 115.0,
+        "reviews": 8,
+        "rating": 5.0
+      }
+    ],
+    "B0CHX736CK": [
+      {
+        "date": "2026-07-19",
+        "price": 95.0,
+        "buybox": 95.0,
+        "reviews": 75,
+        "rating": 4.1
+      }
+    ]
+  }
 }
